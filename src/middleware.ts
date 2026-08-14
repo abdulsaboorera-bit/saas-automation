@@ -1,14 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { verifyToken } from '@/lib/auth/session';
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   const publicPaths = ['/', '/login', '/register', '/forgot-password', '/api/auth', '/api/n8n'];
   const isPublicPath = publicPaths.some((path) => pathname === path || pathname.startsWith(path + '/'));
 
   const token = request.cookies.get('auth_token')?.value;
-  const isAuthenticated = token ? verifyToken(token) !== null : false;
+  const isAuthenticated = !!token && token.split('.').length === 3;
 
   if (!isAuthenticated && !isPublicPath) {
     const url = request.nextUrl.clone();

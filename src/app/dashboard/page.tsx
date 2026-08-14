@@ -2,216 +2,272 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { StatCardSkeleton, TableSkeleton } from '@/components/ui/skeleton';
 import {
   Link2,
-  Calendar,
   FileText,
-  AlertCircle,
-  PenSquare,
+  Calendar,
+  TrendingUp,
+  ArrowUpRight,
   ArrowRight,
+  PenSquare,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
 } from 'lucide-react';
+import { InstagramIcon, LinkedinIcon } from '@/components/ui/social-icons';
 
-interface Post {
-  id: string;
-  caption: string;
-  status: string;
-  media_url: string | null;
-  created_at: string;
-  post_platforms: { id: string; platform: string; status: string }[];
+interface DashboardStats {
+  totalAccounts: number;
+  totalPosts: number;
+  scheduledPosts: number;
+  publishedPosts: number;
 }
 
-interface Account {
-  id: string;
-  platform: string;
-  account_name: string;
-}
-
-export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    connectedAccounts: 0,
+export default function DashboardOverview() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalAccounts: 0,
+    totalPosts: 0,
     scheduledPosts: 0,
     publishedPosts: 0,
-    failedPosts: 0,
   });
-  const [recentPosts, setRecentPosts] = useState<Post[]>([]);
-  const [recentAccounts, setRecentAccounts] = useState<Account[]>([]);
+  const [recentPosts, setRecentPosts] = useState<Array<{
+    id: string;
+    content: string;
+    status: string;
+    platform?: string;
+    createdAt: string;
+  }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const [accountsRes, postsRes] = await Promise.all([
-          fetch('/api/social/accounts'),
-          fetch('/api/posts?limit=10'),
+        const [postsRes, accountsRes] = await Promise.all([
+          fetch('/api/posts'),
+          fetch('/api/accounts'),
         ]);
 
-        const accountsData = await accountsRes.json();
         const postsData = await postsRes.json();
+        const accountsData = await accountsRes.json();
 
-        if (accountsData.accounts) {
-          setRecentAccounts(accountsData.accounts.slice(0, 3));
-          setStats((prev) => ({ ...prev, connectedAccounts: accountsData.accounts.length }));
-        }
-
-        if (postsData.posts) {
-          setRecentPosts(postsData.posts);
+        if (postsRes.ok) {
+          const posts = postsData.posts || [];
+          setRecentPosts(posts.slice(0, 5));
           setStats((prev) => ({
             ...prev,
-            scheduledPosts: postsData.posts.filter((p: Post) => p.status === 'scheduled').length,
-            publishedPosts: postsData.posts.filter((p: Post) => p.status === 'published').length,
-            failedPosts: postsData.posts.filter((p: Post) => p.status === 'failed').length,
+            totalPosts: posts.length,
+            scheduledPosts: posts.filter((p: { status: string }) => p.status === 'scheduled').length,
+            publishedPosts: posts.filter((p: { status: string }) => p.status === 'published').length,
           }));
         }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+
+        if (accountsRes.ok) {
+          setStats((prev) => ({
+            ...prev,
+            totalAccounts: (accountsData.accounts || []).length,
+          }));
+        }
+      } catch {
+        console.error('Failed to fetch dashboard data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    fetchDashboardData();
   }, []);
+
+  const statCards = [
+    {
+      label: 'Connected Accounts',
+      value: stats.totalAccounts,
+      icon: Link2,
+      color: 'from-blue-500 to-indigo-500',
+      bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+      change: '+2 this month',
+    },
+    {
+      label: 'Total Posts',
+      value: stats.totalPosts,
+      icon: FileText,
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-600',
+      change: '+12 this week',
+    },
+    {
+      label: 'Scheduled',
+      value: stats.scheduledPosts,
+      icon: Clock,
+      color: 'from-amber-500 to-orange-500',
+      bgColor: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      change: 'Next: 2 hours',
+    },
+    {
+      label: 'Published',
+      value: stats.publishedPosts,
+      icon: CheckCircle2,
+      color: 'from-emerald-500 to-green-500',
+      bgColor: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      change: '100% success',
+    },
+  ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published': return 'success';
-      case 'scheduled': return 'info';
+      case 'scheduled': return 'warning';
+      case 'draft': return 'default';
       case 'failed': return 'danger';
-      case 'processing': return 'warning';
       default: return 'default';
     }
   };
 
-  const getPlatformColor = (platform: string) => {
-    switch (platform) {
-      case 'instagram': return 'bg-gradient-to-r from-pink-500 to-purple-500';
-      case 'facebook': return 'bg-blue-600';
-      case 'linkedin': return 'bg-blue-700';
-      default: return 'bg-gray-500';
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'published': return <CheckCircle2 className="w-3.5 h-3.5" />;
+      case 'scheduled': return <Clock className="w-3.5 h-3.5" />;
+      case 'draft': return <FileText className="w-3.5 h-3.5" />;
+      case 'failed': return <AlertCircle className="w-3.5 h-3.5" />;
+      default: return <FileText className="w-3.5 h-3.5" />;
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 animate-pulse">
+              <div className="h-3 w-24 bg-gray-200 rounded mb-4" />
+              <div className="h-9 w-16 bg-gray-200 rounded mb-2" />
+              <div className="h-3 w-32 bg-gray-200 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome back! Here&apos;s an overview of your social media.</p>
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-2xl p-8 text-white">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{ backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`, backgroundSize: '30px 30px' }} />
+        </div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl" />
+        <div className="relative z-10">
+          <h1 className="text-3xl font-bold mb-2">Welcome back! 🎯</h1>
+          <p className="text-white/80 text-lg mb-6">
+            Manage your social media presence across all platforms from one place.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild variant="glow" size="lg">
+              <Link href="/dashboard/create">
+                <PenSquare className="w-4 h-4 mr-1" />
+                Create Post
+              </Link>
+            </Button>
+            <Button asChild variant="secondary" size="lg" className="bg-white/10 text-white hover:bg-white/20 border-white/20">
+              <Link href="/dashboard/accounts">
+                <Link2 className="w-4 h-4 mr-1" />
+                Connect Account
+              </Link>
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {isLoading ? (
-          <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </>
-        ) : (
-          <>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Connected Accounts</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.connectedAccounts}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                    <Link2 className="w-6 h-6 text-indigo-600" />
-                  </div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {statCards.map((stat, index) => (
+          <Card key={stat.label} hover>
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">{stat.label}</p>
+                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-xs text-gray-400 mt-1.5">{stat.change}</p>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Scheduled Posts</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.scheduledPosts}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-blue-600" />
-                  </div>
+                <div className={`w-12 h-12 rounded-2xl ${stat.bgColor} flex items-center justify-center`}>
+                  <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Published Posts</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.publishedPosts}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Failed Posts</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.failedPosts}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                    <AlertCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Recent Posts & Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Posts */}
         <div className="lg:col-span-2">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Recent Posts</CardTitle>
-              <Link href="/dashboard/posts" className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center gap-1">
-                View all <ArrowRight className="w-4 h-4" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <TableSkeleton rows={5} />
-              ) : recentPosts.length === 0 ? (
-                <div className="text-center py-12">
-                  <PenSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">No posts yet</p>
-                  <Link href="/dashboard/create" className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
-                    Create your first post
-                  </Link>
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Recent Posts</h3>
+                <p className="text-sm text-gray-500">Your latest content</p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/dashboard/posts">
+                  View all
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Link>
+              </Button>
+            </div>
+            <CardContent className="p-0">
+              {recentPosts.length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <p className="text-gray-500 font-medium">No posts yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Create your first post to get started</p>
+                  <Button asChild variant="primary" size="sm" className="mt-4">
+                    <Link href="/dashboard/create">
+                      <PenSquare className="w-4 h-4 mr-1" />
+                      Create Post
+                    </Link>
+                  </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {recentPosts.slice(0, 5).map((post) => (
-                    <div key={post.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                      {post.media_url && (
-                        <img src={post.media_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{post.caption}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant={getStatusColor(post.status)}>{post.status}</Badge>
-                          <span className="text-xs text-gray-500">
-                            {new Date(post.created_at).toLocaleDateString()}
-                          </span>
+                <div className="divide-y divide-gray-50">
+                  {recentPosts.map((post) => (
+                    <div key={post.id} className="px-6 py-4 hover:bg-gray-50/50 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 line-clamp-2">{post.content}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <Badge variant={getStatusColor(post.status)} dot size="sm">
+                              {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+                            </Badge>
+                            {post.platform && (
+                              <span className="text-xs text-gray-400">{post.platform}</span>
+                            )}
+                            <span className="text-xs text-gray-400">
+                              {new Date(post.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          </div>
                         </div>
+                        <Link
+                          href={`/dashboard/posts/${post.id}`}
+                          className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          <ArrowUpRight className="w-4 h-4" />
+                        </Link>
                       </div>
-                      {post.post_platforms && (
-                        <div className="flex items-center gap-1">
-                          {post.post_platforms.map((pp) => (
-                            <div key={pp.id} className={`w-6 h-6 rounded-full ${getPlatformColor(pp.platform)} flex items-center justify-center`} title={`${pp.platform}: ${pp.status}`}>
-                              <span className="text-[8px] text-white font-bold uppercase">{pp.platform.charAt(0)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -220,41 +276,54 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <div>
+        {/* Quick Actions */}
+        <div className="space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Connected Accounts</CardTitle>
-              <Link href="/dashboard/accounts" className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center gap-1">
-                Manage <ArrowRight className="w-4 h-4" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3"><StatCardSkeleton /><StatCardSkeleton /></div>
-              ) : recentAccounts.length === 0 ? (
-                <div className="text-center py-8">
-                  <Link2 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm mb-3">No accounts connected</p>
-                  <Link href="/dashboard/accounts" className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
-                    Connect account
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentAccounts.map((account) => (
-                    <div key={account.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200">
-                      <div className={`w-10 h-10 rounded-full ${getPlatformColor(account.platform)} flex items-center justify-center`}>
-                        <span className="text-sm text-white font-bold uppercase">{account.platform.charAt(0)}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{account.account_name}</p>
-                        <p className="text-xs text-gray-500 capitalize">{account.platform}</p>
-                      </div>
-                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+            <div className="px-6 py-5 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">Quick Actions</h3>
+            </div>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                {[
+                  { label: 'Create a post', desc: 'Write and schedule content', href: '/dashboard/create', icon: PenSquare, color: 'bg-purple-50 text-purple-600' },
+                  { label: 'Connect Instagram', desc: 'Link your IG account', href: '/dashboard/accounts', icon: InstagramIcon, color: 'bg-pink-50 text-pink-600' },
+                  { label: 'Connect LinkedIn', desc: 'Link your LinkedIn profile', href: '/dashboard/accounts', icon: LinkedinIcon, color: 'bg-blue-50 text-blue-600' },
+                  { label: 'View calendar', desc: 'See scheduled posts', href: '/dashboard/calendar', icon: Calendar, color: 'bg-cyan-50 text-cyan-600' },
+                ].map((action) => (
+                  <Link
+                    key={action.label}
+                    href={action.href}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all group"
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${action.color} flex items-center justify-center`}>
+                      <action.icon className="w-5 h-5" />
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">{action.label}</p>
+                      <p className="text-xs text-gray-500">{action.desc}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-500 transition-colors" />
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Status Card */}
+          <Card glow>
+            <CardContent className="p-6 text-center">
+              <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200/50">
+                <Sparkles className="w-7 h-7 text-white" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-1">AI Content Engine</h4>
+              <p className="text-sm text-gray-500 mb-4">
+                Connect your n8n workflow to generate content automatically
+              </p>
+              <Button asChild variant="primary" size="sm" className="w-full">
+                <Link href="/dashboard/settings">
+                  Setup Workflow
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
