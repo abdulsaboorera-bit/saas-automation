@@ -362,17 +362,34 @@ function HeroSection() {
 }
 
 function LogoCloud() {
+  const logos = [
+    { name: 'Stripe', letter: 'S' },
+    { name: 'Vercel', letter: 'V' },
+    { name: 'Linear', letter: 'L' },
+    { name: 'Notion', letter: 'N' },
+    { name: 'Figma', letter: 'F' },
+    { name: 'Slack', letter: 'S' },
+  ];
+
   return (
-    <section className="py-16 border-y border-gray-100 bg-gray-50/50">
+    <section className="py-20 border-y border-gray-100 bg-gradient-to-b from-white to-gray-50/50">
       <AnimatedSection className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.p variants={fadeUp} className="text-center text-sm font-medium text-gray-400 mb-8">
+        <motion.p variants={fadeUp} className="text-center text-sm font-semibold text-gray-400 uppercase tracking-widest mb-10">
           Trusted by forward-thinking companies worldwide
         </motion.p>
-        <div className="flex flex-wrap items-center justify-center gap-12 opacity-40">
-          {['Stripe', 'Vercel', 'Linear', 'Notion', 'Figma', 'Slack'].map((brand) => (
-            <motion.span key={brand} variants={fadeUp} className="text-2xl font-bold text-gray-400 tracking-tight">
-              {brand}
-            </motion.span>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-8 items-center">
+          {logos.map((logo) => (
+            <motion.div
+              key={logo.name}
+              variants={fadeUp}
+              whileHover={{ scale: 1.05 }}
+              className="flex items-center justify-center gap-2.5 opacity-40 hover:opacity-70 transition-opacity duration-300 cursor-default"
+            >
+              <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                <span className="text-sm font-black text-gray-500">{logo.letter}</span>
+              </div>
+              <span className="text-xl font-bold text-gray-500 tracking-tight">{logo.name}</span>
+            </motion.div>
           ))}
         </div>
       </AnimatedSection>
@@ -386,48 +403,60 @@ function FeaturesSection() {
       icon: Globe,
       title: 'Multi-Platform Publishing',
       description: 'Connect and manage Instagram, Facebook, and LinkedIn from one unified dashboard.',
-      color: 'from-blue-500 to-indigo-500',
-      bgColor: 'bg-blue-50',
+      iconBg: 'bg-blue-500',
+      iconShadow: 'shadow-blue-200',
+      hoverBorder: 'hover:border-blue-200',
+      tag: 'Social',
     },
     {
       icon: Calendar,
       title: 'Smart Scheduling',
       description: 'Schedule posts for optimal engagement times. Your content publishes automatically.',
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'bg-purple-50',
+      iconBg: 'bg-purple-500',
+      iconShadow: 'shadow-purple-200',
+      hoverBorder: 'hover:border-purple-200',
+      tag: 'Planning',
     },
     {
       icon: Cpu,
       title: 'AI Content Engine',
       description: 'Generate compelling content with our n8n-powered AI automation pipeline.',
-      color: 'from-amber-500 to-orange-500',
-      bgColor: 'bg-amber-50',
+      iconBg: 'bg-amber-500',
+      iconShadow: 'shadow-amber-200',
+      hoverBorder: 'hover:border-amber-200',
+      tag: 'Automation',
     },
     {
       icon: Shield,
       title: 'Bank-Level Security',
       description: 'AES-256-GCM encrypted tokens and secure OAuth flows protect your credentials.',
-      color: 'from-emerald-500 to-green-500',
-      bgColor: 'bg-emerald-50',
+      iconBg: 'bg-emerald-500',
+      iconShadow: 'shadow-emerald-200',
+      hoverBorder: 'hover:border-emerald-200',
+      tag: 'Security',
     },
     {
       icon: BarChart3,
       title: 'Real-Time Analytics',
       description: 'Track your posting performance and engagement across all connected platforms.',
-      color: 'from-cyan-500 to-blue-500',
-      bgColor: 'bg-cyan-50',
+      iconBg: 'bg-cyan-500',
+      iconShadow: 'shadow-cyan-200',
+      hoverBorder: 'hover:border-cyan-200',
+      tag: 'Insights',
     },
     {
       icon: Layers,
       title: 'Content Calendar',
       description: 'Visual calendar view to plan, organize, and manage your content strategy.',
-      color: 'from-rose-500 to-pink-500',
-      bgColor: 'bg-rose-50',
+      iconBg: 'bg-rose-500',
+      iconShadow: 'shadow-rose-200',
+      hoverBorder: 'hover:border-rose-200',
+      tag: 'Organize',
     },
   ];
 
   return (
-    <section id="features" className="py-24 relative">
+    <section id="features" className="py-28 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
           <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full text-sm font-medium text-indigo-700 mb-4">
@@ -448,14 +477,32 @@ function FeaturesSection() {
             <motion.div
               key={feature.title}
               variants={fadeUp}
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
-              className="group p-8 bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300"
+              whileHover={{ y: -8, transition: { duration: 0.3, ease: 'easeOut' } }}
+              className={`group relative p-8 bg-white rounded-2xl border border-gray-100 ${feature.hoverBorder} hover:shadow-2xl hover:shadow-gray-200/50 transition-all duration-300 overflow-hidden`}
             >
-              <div className={`w-14 h-14 ${feature.bgColor} rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
-                <feature.icon className={`w-7 h-7 bg-gradient-to-br ${feature.color} bg-clip-text`} style={{ color: 'transparent', backgroundImage: `linear-gradient(to bottom right, ${feature.color.includes('blue') ? '#3b82f6, #6366f1' : feature.color.includes('purple') ? '#a855f7, #ec4899' : feature.color.includes('amber') ? '#f59e0b, #f97316' : feature.color.includes('emerald') ? '#10b981, #22c55e' : feature.color.includes('cyan') ? '#06b6d4, #3b82f6' : '#f43f5e, #ec4899'})`, WebkitBackgroundClip: 'text' }} />
+              {/* Background glow on hover */}
+              <div className={`absolute -top-20 -right-20 w-40 h-40 ${feature.iconBg} rounded-full opacity-0 group-hover:opacity-5 blur-3xl transition-opacity duration-500`} />
+
+              <div className="relative">
+                <div className="flex items-center justify-between mb-6">
+                  <div className={`w-14 h-14 ${feature.iconBg} rounded-2xl flex items-center justify-center shadow-lg ${feature.iconShadow} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                    <feature.icon className="w-7 h-7 text-white" strokeWidth={2} />
+                  </div>
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-3 py-1 rounded-full">
+                    {feature.tag}
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  {feature.description}
+                </p>
+
+                {/* Bottom accent line */}
+                <div className="absolute bottom-0 left-0 w-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 group-hover:w-full transition-all duration-500 rounded-full" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
         </div>
