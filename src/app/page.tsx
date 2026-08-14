@@ -192,7 +192,7 @@ function HeroSection() {
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   return (
-    <section ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+    <section ref={ref} className="relative min-h-screen flex items-center justify-center pt-16 pb-20">
       <FloatingOrbs />
       <GridPattern />
       <ParticleField />
@@ -298,11 +298,12 @@ function HeroSection() {
         <motion.div
           initial={{ opacity: 0, y: 60, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.8, delay: 0.9, ease: [0.22, 1, 0.36, 1] as const }}
           className="mt-20 relative max-w-5xl mx-auto"
         >
           <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl" />
           <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
+            {/* Window bar */}
             <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200/50">
               <div className="flex gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-red-400" />
@@ -311,31 +312,67 @@ function HeroSection() {
               </div>
               <div className="flex-1 text-center text-xs text-gray-400 font-medium">SocialPilot Dashboard</div>
             </div>
+
+            {/* Dashboard content */}
             <div className="p-8 bg-gradient-to-br from-gray-50 to-white">
+              {/* Stats row */}
               <div className="grid grid-cols-3 gap-4 mb-6">
                 {[
-                  { label: 'Connected', value: '3', color: 'from-blue-500 to-indigo-500' },
-                  { label: 'Published', value: '127', color: 'from-emerald-500 to-green-500' },
-                  { label: 'Scheduled', value: '18', color: 'from-amber-500 to-orange-500' },
+                  { label: 'Connected', value: '3', icon: '🔗', change: '+1 this week' },
+                  { label: 'Published', value: '127', icon: '✅', change: '+24 this month' },
+                  { label: 'Scheduled', value: '18', icon: '⏰', change: 'Next: 2hrs' },
                 ].map((stat) => (
-                  <div key={stat.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                    <p className="text-xs text-gray-400 mb-1">{stat.label}</p>
-                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <div key={stat.label} className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-400 font-medium">{stat.label}</p>
+                      <span className="text-lg">{stat.icon}</span>
+                    </div>
+                    <p className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</p>
+                    <p className="text-[11px] text-gray-400">{stat.change}</p>
                   </div>
                 ))}
               </div>
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center">
+
+              {/* Recent post row */}
+              <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-sm">
                     <span className="text-white text-xs font-bold">IG</span>
                   </div>
                   <div className="flex-1">
-                    <div className="h-2.5 bg-gray-200 rounded-full w-3/4 mb-1" />
-                    <div className="h-2 bg-gray-100 rounded-full w-1/2" />
+                    <div className="h-3 bg-gray-200 rounded-full w-3/4 mb-2" />
+                    <div className="h-2.5 bg-gray-100 rounded-full w-1/2" />
                   </div>
-                  <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-medium">Published</div>
+                  <div className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-xs font-semibold">Published</div>
                 </div>
-                <div className="h-2 bg-gray-100 rounded-full w-full" />
+              </div>
+
+              {/* Second post row */}
+              <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 rounded-xl flex items-center justify-center shadow-sm">
+                    <span className="text-white text-xs font-bold">LI</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="h-3 bg-gray-200 rounded-full w-2/3 mb-2" />
+                    <div className="h-2.5 bg-gray-100 rounded-full w-2/5" />
+                  </div>
+                  <div className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-full text-xs font-semibold">Scheduled</div>
+                </div>
+              </div>
+
+              {/* Third post row */}
+              <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-sm">
+                    <span className="text-white text-xs font-bold">IG</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="h-3 bg-gray-200 rounded-full w-5/6 mb-2" />
+                    <div className="h-2.5 bg-gray-100 rounded-full w-1/3" />
+                  </div>
+                  <div className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-xs font-semibold">Published</div>
+                </div>
               </div>
             </div>
           </div>
