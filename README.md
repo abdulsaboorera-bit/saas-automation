@@ -1,6 +1,6 @@
 # SocialPilot - Social Media Automation SaaS
 
-A production-ready multi-user SaaS web application for managing social media accounts, creating posts, scheduling content, and publishing through an existing n8n automation system.
+A production-ready multi-user SaaS web application for managing social media accounts, creating posts, scheduling content, and publishing through a fully self-contained built-in automation engine.
 
 ## Tech Stack
 
@@ -8,7 +8,8 @@ A production-ready multi-user SaaS web application for managing social media acc
 - **Backend:** Next.js API Routes (Node.js)
 - **Database:** MongoDB with Mongoose
 - **Auth:** JWT (jsonwebtoken + bcryptjs)
-- **Automation:** n8n webhooks
+- **Automation:** Built-in background worker (AutomationEngine)
+- **AI Content Generation:** OpenAI API
 
 ## Quick Start
 
@@ -51,9 +52,8 @@ META_CLIENT_SECRET=your_meta_app_secret
 LINKEDIN_CLIENT_ID=your_linkedin_client_id
 LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
 
-# n8n Webhook URL (from your n8n workflow)
-N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/your-webhook-id
-N8N_CALLBACK_SECRET=any_random_secret_string
+# OpenAI (for AI content generation)
+OPENAI_API_KEY=sk-your-openai-api-key
 
 # Encryption key (32+ random characters)
 ENCRYPTION_KEY=your_32_character_encryption_key
@@ -88,12 +88,11 @@ Open [http://localhost:3000](http://localhost:3000)
 | **LINKEDIN_CLIENT_ID** | [linkedin.com/developers](https://www.linkedin.com/developers/) > Create App > Auth > Client ID |
 | **LINKEDIN_CLIENT_SECRET** | Same location > Client Secret |
 
-### Required (For n8n integration)
+### Required (For AI content generation)
 
-| Item | Description |
-|------|------------|
-| **N8N_WEBHOOK_URL** | The webhook URL from your existing n8n workflow |
-| **N8N_CALLBACK_SECRET** | Any random string you choose |
+| Item | How to get it |
+|------|--------------|
+| **OPENAI_API_KEY** | [platform.openai.com](https://platform.openai.com) > API Keys > Create new secret key |
 
 ---
 
@@ -110,54 +109,23 @@ Add these to your Meta and LinkedIn app settings:
 
 ---
 
-## n8n Integration
+## How Automation Works
 
-### Payload sent to your n8n webhook
+The application includes a built-in `AutomationEngine` that runs as a background worker inside the Next.js process. There are no external webhook services or third-party automation platforms required.
 
-```json
-{
-  "job_id": "uuid",
-  "user_id": "user-id",
-  "post_id": "post-id",
-  "caption": "Your caption",
-  "media_url": "https://.../image.jpg",
-  "scheduled_at": "2026-08-15T15:00:00Z",
-  "platforms": [
-    {
-      "platform": "instagram",
-      "social_account_id": "ig-user-id",
-      "account_name": "My Instagram",
-      "username": "myusername"
-    }
-  ]
-}
-```
+### Scheduling Flow
 
-### Callback format (n8n sends back to /api/n8n/callback)
+1. User creates a post and schedules it for a future time
+2. The post is saved to the database with a `scheduled_at` timestamp
+3. The `AutomationEngine` polls for due posts on a configurable interval
+4. When a post is due, the engine publishes directly to each target platform's API:
+   - **Instagram/Facebook** via the Meta Graph API
+   - **LinkedIn** via the LinkedIn Marketing API
+5. Results (success/failure) are written back to the database in real time
 
-```json
-{
-  "job_id": "uuid-from-payload",
-  "post_id": "post-id",
-  "platform": "instagram",
-  "status": "published",
-  "platform_post_id": "optional-id",
-  "error": null
-}
-```
+### AI Content Generation
 
-Set header `X-N8N-SIGNATURE` = HMAC-SHA256(body, N8N_CALLBACK_SECRET).
-
----
-
-## Excel / Google Sheets Integration
-
-Your n8n workflow already has a Google Sheets trigger. Two options:
-
-1. **SaaS sends jobs to n8n → n8n writes to Google Sheets** (your existing flow)
-2. **SaaS writes topics to Google Sheets directly** (I can add this)
-
-Tell me your preferred approach and your Google Sheet column structure.
+When a user requests AI-generated content, the app calls the OpenAI API directly from the server — no intermediary services involved.
 
 ---
 
@@ -168,15 +136,19 @@ src/
   app/
     (auth)/login, register, forgot-password
     dashboard/page, accounts, create, posts, calendar, settings
-    api/auth/, social/, posts/, n8n/, upload/
+    api/auth/, social/, posts/, upload/
   models/User.ts, SocialAccount.ts, Post.ts, PostPlatform.ts, OAuthState.ts
   lib/
-    auth/session.ts          # JWT auth
-    db/mongodb.ts            # MongoDB connection
-    oauth/index.ts           # OAuth flows + social account management
-    n8n/index.ts             # n8n webhook integration
-    security/encryption.ts   # Token encryption
-  components/ui/             # Reusable UI components
+    auth/session.ts              # JWT auth
+    db/mongodb.ts                # MongoDB connection
+    oauth/index.ts               # OAuth flows + social account management
+    automation/engine.ts         # Built-in background scheduling engine
+    ai/generate.ts               # OpenAI content generation
+    social/instagram.ts          # Instagram Graph API publishing
+    social/facebook.ts           # Facebook Graph API publishing
+    social/linkedin.ts           # LinkedIn API publishing
+    security/encryption.ts       # Token encryption
+  components/ui/                 # Reusable UI components
   types/index.ts
 ```
 
@@ -189,6 +161,11 @@ src/
 2. Import in Vercel
 3. Add environment variables
 4. Deploy
+
+> **Note:** The `AutomationEngine` runs inside the Next.js serverless functions. For persistent background scheduling on Vercel, consider using Vercel Cron Jobs or deploying the worker as a separate long-running process.
+
+### Self-Hosted
+You can deploy anywhere that runs Node.js. The automation engine runs as part of the application process — no separate worker deployment needed.
 
 ### MongoDB
 Use MongoDB Atlas (free tier) - no database hosting needed on your end.

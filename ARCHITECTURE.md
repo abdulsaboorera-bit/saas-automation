@@ -7,10 +7,13 @@
 | Collection | What It Stores | Key Fields |
 |------------|----------------|------------|
 | **users** | User accounts | email, password_hash, full_name |
+| **organizations** | Multi-tenant orgs | name, status |
 | **posts** | Every post (draft, scheduled, published) | caption, media_url, status, scheduled_at |
 | **post_platforms** | Per-platform status for each post | platform, status, platform_post_id, error_message |
 | **social_accounts** | Connected IG/FB/LI accounts | platform, access_token_encrypted, status |
 | **oauth_states** | Temporary OAuth flow tokens | state_token, platform, expires_at |
+| **automation_jobs** | Jobs for the internal scheduler | type, status, scheduled_at, attempts |
+| **content_topics** | Topics queued for AI generation | topic, status, postId |
 
 ### Post Status Values
 
@@ -20,6 +23,20 @@ draft → scheduled → processing → published
                         failed
                            ↓
                         partial (some platforms succeeded)
+```
+
+### Automation Job Types
+
+```
+TOPIC_PROCESSING → CONTENT_GENERATION → IMAGE_GENERATION → PUBLISH_POST
+```
+
+### Automation Job Status Values
+
+```
+QUEUED → PROCESSING → COMPLETED
+  ↓          ↓
+RETRYING   FAILED
 ```
 
 ---
@@ -39,23 +56,18 @@ POST /api/posts
         ▼
 POST /api/posts/abc123/publish
   Updates: Post status → "processing"
-  Calls: sendJobToN8n()
-  Sends to n8n: { job_id, post_id, caption, media_url, platforms[] }
+  Creates: AutomationJob (type: PUBLISH_POST, status: QUEUED)
         │
         ▼
-n8n Webhook receives payload
-  For each platform:
-    GET /api/n8n/token?social_account_id=xxx&post_id=abc123
-      Returns: { access_token, platform, platform_account_id }
-    Publish to platform API (Instagram/Facebook/LinkedIn)
-    POST /api/n8n
-      Body: { post_id, platform, status, platform_post_id }
-      Header: x-n8n-signature (HMAC-SHA256)
-        │
-        ▼
-POST /api/n8n (callback)
-  Updates: PostPlatform status → "published" or "failed"
-  Recalculates: Post status based on all platforms
+AutomationEngine picks up job on next 60s tick
+  Reads Post + SocialAccount records
+  Decrypts access tokens from MongoDB
+  Calls platform APIs directly:
+    - Instagram Graph API v19.0
+    - Facebook Graph API v19.0
+    - LinkedIn API v2
+  Updates: PostPlatform status per platform
+  Updates: Post status → "published" or "failed"
 ```
 
 ### Flow 2: Scheduled Post
@@ -70,15 +82,15 @@ POST /api/posts
         ▼
 POST /api/posts/abc123/schedule
   Updates: Post status → "scheduled", scheduled_at = future date
-  Calls: sendJobToN8n() WITH scheduled_at included in payload
-  n8n receives: { ..., scheduled_at: "2024-01-15T14:00:00Z" }
+  Creates: AutomationJob (type: PUBLISH_POST, scheduled_at: future)
         │
         ▼
-n8n WAIT node holds the job until scheduled_at time
+AutomationEngine polls every 60 seconds
+  Finds jobs where scheduled_at <= now AND status IN (QUEUED, RETRYING)
+  Processes them in order of scheduledAt
         │
         ▼
-(At scheduled time) n8n proceeds to publish
-  Same as Flow 1 from here
+Same as Flow 1 from here
 ```
 
 ### Flow 3: AI-Generated Post
@@ -88,14 +100,17 @@ User enters topic, clicks "Generate with AI"
         │
         ▼
 POST /api/ai/generate
-  Sends to n8n: { user_id, topic, platforms, tone }
+  Creates: ContentTopic (status: PENDING)
+  Creates: AutomationJob (type: TOPIC_PROCESSING)
         │
         ▼
-n8n AI Workflow
-  Generates caption with OpenAI
-  POST /api/ai/callback
-    Body: { user_id, caption, platforms }
-    Creates: Post (status: draft) + PostPlatform records
+AutomationEngine picks up job
+  Reads ContentTopic + BrandProfile
+  Calls OpenAI via lib/ai module:
+    - generateContent() → caption + hashtags
+    - generateImage() → media URL (optional)
+  Creates: Post (status: draft) + PostPlatform records
+  Updates: ContentTopic (status: COMPLETED, postId)
         │
         ▼
 User sees draft in Dashboard → Posts
@@ -113,8 +128,8 @@ User sees draft in Dashboard → Posts
 | `/api/auth/me` | GET | Cookie | Get current user |
 | `/api/posts` | GET | Cookie | List posts |
 | `/api/posts` | POST | Cookie | Create post |
-| `/api/posts/[id]/publish` | POST | Cookie | Trigger publish to n8n |
-| `/api/posts/[id]/schedule` | POST | Cookie | Schedule post via n8n |
+| `/api/posts/[id]/publish` | POST | Cookie | Queue publish job |
+| `/api/posts/[id]/schedule` | POST | Cookie | Schedule publish job |
 | `/api/social/accounts` | GET | Cookie | List connected accounts |
 | `/api/social/accounts` | DELETE | Cookie | Disconnect account |
 | `/api/social/instagram/connect` | GET | Cookie | Start IG OAuth |
@@ -124,60 +139,53 @@ User sees draft in Dashboard → Posts
 | `/api/social/linkedin/connect` | GET | Cookie | Start LI OAuth |
 | `/api/social/linkedin/callback` | GET | Public | LI OAuth callback |
 | `/api/ai/generate` | POST | Cookie | Trigger AI generation |
-| `/api/ai/callback` | POST | HMAC | AI callback to save draft |
-| `/api/n8n` | POST | HMAC | n8n publish callback |
-| `/api/n8n/token` | GET | API Key | n8n fetches access tokens |
 
 ---
 
-## n8n Workflow A: AI Content Generator
+## Automation Engine
 
-**Trigger:** POST `/webhook/ai-generate` (from app) or Schedule (cron)
+**Location:** `src/lib/automation/engine.ts`
 
-**Flow:**
-1. Receive topic + tone + platforms
-2. Build prompt for OpenAI
-3. Generate caption with GPT-4o
-4. Parse response
-5. POST to `/api/ai/callback` with HMAC signature
-6. Content saved as draft in MongoDB
+The app runs an internal `AutomationEngine` singleton that acts as a background scheduler within the Next.js process. No external workflow tools are used.
 
-**n8n Environment Variables:**
-```
-APP_URL = http://localhost:3000
-N8N_CALLBACK_SECRET = (same as app)
-OPENAI_API_KEY = sk-...
-```
+### How It Works
 
----
+1. **Singleton:** `AutomationEngine.getInstance()` returns the single instance
+2. **Start:** Called at app startup, runs `setInterval` every 60 seconds
+3. **Poll:** Each tick queries MongoDB for due `AutomationJob` records (status QUEUED/RETRYING, scheduledAt ≤ now)
+4. **Process:** Handles jobs by type (see below)
+5. **Retry:** Failed jobs retry with exponential backoff up to `maxAttempts`
+6. **Stop:** `stop()` clears the interval and halts processing
 
-## n8n Workflow B: Publisher
+### Job Processing by Type
 
-**Trigger:** POST `/webhook/social-publish` (from app)
+| Job Type | What It Does | Key Dependencies |
+|----------|--------------|------------------|
+| **TOPIC_PROCESSING** | Reads a ContentTopic, calls OpenAI to generate caption + hashtags, creates a Post | `lib/ai/generateContent`, BrandProfile |
+| **CONTENT_GENERATION** | Generates AI content for a specific Post (regenerate) | `lib/ai/generateContent`, BrandProfile |
+| **IMAGE_GENERATION** | Generates an image for a Post via DALL-E 3 | `lib/ai/generateImage` |
+| **PUBLISH_POST** | Decrypts tokens, calls platform APIs directly | `SocialAccount`, platform Graph APIs |
 
-**Flow:**
-1. Receive payload: { job_id, user_id, post_id, caption, media_url, scheduled_at, platforms[] }
-2. If scheduled_at is set → Wait node holds until that time
-3. Split platforms array
-4. For each platform:
-   a. GET `/api/n8n/token?social_account_id=xxx&post_id=xxx` (with API key)
-   b. Publish to platform API
-   c. POST to `/api/n8n` with HMAC signature (per platform)
-5. Callback updates PostPlatform status
-6. App recalculates Post status
+### Platform API Calls
 
-**n8n Environment Variables:**
-```
-APP_URL = http://localhost:3000
-N8N_CALLBACK_SECRET = (same as app)
-N8N_API_KEY = (same as app)
-```
+| Platform | API Endpoint | Auth Method |
+|----------|-------------|-------------|
+| Instagram | `graph.facebook.com/v19.0/{ig_id}/media` + `media_publish` | access_token in body |
+| Facebook | `graph.facebook.com/v19.0/{page_id}/feed` | access_token in body |
+| LinkedIn | `api.linkedin.com/v2/ugcPosts` | Bearer token header |
+
+All tokens are decrypted from MongoDB at publish time via `lib/security/encryption`.
+
+### Kill Switches
+
+| Switch | Function | Effect |
+|--------|----------|--------|
+| Global automation pause | `isGlobalAutomationPaused()` | Engine skips all job processing |
+| Global publishing stop | `isGlobalPublishingStopped()` | PUBLISH_POST jobs fail immediately; other jobs still run |
 
 ---
 
 ## Environment Variables
-
-### Next.js App (.env)
 
 ```env
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -189,35 +197,26 @@ META_CLIENT_SECRET=from_developers.facebook.com
 LINKEDIN_CLIENT_ID=from_linkedin.com/developers
 LINKEDIN_CLIENT_SECRET=from_linkedin.com/developers
 
-N8N_WEBHOOK_URL=http://localhost:5678/webhook/social-publish
-N8N_AI_WEBHOOK_URL=http://localhost:5678/webhook/ai-generate
-N8N_CALLBACK_SECRET=any_random_string
-N8N_API_KEY=any_random_string
-
 OPENAI_API_KEY=sk-...
 ENCRYPTION_KEY=random_32plus_chars
 ```
 
-### n8n (Environment Variables)
-
-```
-APP_URL = http://localhost:3000
-N8N_CALLBACK_SECRET = (same as app)
-N8N_API_KEY = (same as app)
-N8N_WEBHOOK_URL = http://localhost:5678/webhook/social-publish
-OPENAI_API_KEY = sk-... (only for AI workflow)
-```
+No external workflow URLs, callback secrets, or API keys for third-party automation tools are needed.
 
 ---
 
 ## Key Design Decisions
 
-1. **Data storage:** All post data and schedules live in MongoDB. n8n is stateless — it receives a job, processes it, and calls back.
+1. **Self-contained system:** All automation runs inside the Next.js process via the `AutomationEngine` singleton. No external tools, webhooks, or callbacks.
 
-2. **Scheduling:** The app sends the post to n8n immediately with `scheduled_at`. n8n's Wait node holds the job until that time. This is simpler than having the app poll for due posts.
+2. **Polling scheduler:** The engine polls MongoDB every 60 seconds for due jobs. This is simpler and more reliable than webhook-based scheduling — no waiting for external services to call back.
 
-3. **AI generation:** The AI workflow is separate from the publisher. It generates content and saves it as a draft. The user reviews and manually triggers publish. This gives control over what gets posted.
+3. **Job queue in MongoDB:** `AutomationJob` collection acts as the job queue. Jobs have types, statuses, retry logic, and scheduled times. No separate message broker needed.
 
-4. **Token security:** Tokens are encrypted in MongoDB. n8n fetches them on-demand via `/api/n8n/token` instead of receiving them in the webhook payload.
+4. **AI generation:** The AI workflow is part of the engine pipeline. Topics flow through `TOPIC_PROCESSING` → `CONTENT_GENERATION` → `IMAGE_GENERATION` before becoming drafts. The user reviews before publishing.
 
-5. **Callback validation:** All n8n callbacks use HMAC-SHA256 signatures to prevent unauthorized requests.
+5. **Token security:** Tokens are encrypted in MongoDB and decrypted only at publish time. No tokens are ever sent to external services or stored in logs.
+
+6. **Direct API calls:** Platform publishing uses direct HTTP calls to Instagram/Facebook/LinkedIn Graph APIs. No intermediary services or callback endpoints.
+
+7. **Error handling:** Failed jobs classify errors (AUTH_ERROR, RATE_LIMIT, AI_ERROR, etc.) and retry with exponential backoff. Auth errors fail immediately without retry.

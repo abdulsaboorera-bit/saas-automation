@@ -294,30 +294,6 @@ export interface BrandProfile {
   updatedAt: string;
 }
 
-export interface N8nJobPayload {
-  job_id: string;
-  user_id: string;
-  post_id: string;
-  caption: string;
-  media_url: string | null;
-  scheduled_at: string | null;
-  platforms: {
-    platform: Platform;
-    social_account_id: string;
-    account_name: string;
-    username: string | null;
-  }[];
-}
-
-export interface N8nCallbackPayload {
-  job_id: string;
-  post_id: string;
-  platform: Platform;
-  status: 'published' | 'failed';
-  platform_post_id?: string;
-  error?: string;
-}
-
 export interface DashboardStats {
   connectedAccounts: number;
   scheduledPosts: number;

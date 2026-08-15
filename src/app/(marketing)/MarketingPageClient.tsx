@@ -545,7 +545,7 @@ function FeaturesSection() {
       icon: Cpu,
       title: 'AI Content Engine',
       description:
-        'Generate compelling content with our n8n-powered AI automation pipeline.',
+        'Generate compelling content with our AI-powered automation pipeline.',
       iconBg: 'bg-amber-500',
       iconShadow: 'shadow-amber-200',
       hoverBorder: 'hover:border-amber-200',
@@ -672,7 +672,7 @@ function HowItWorksSection() {
       number: '03',
       title: 'Publish & Automate',
       description:
-        'Publish immediately or schedule for later. Our n8n-powered automation handles the heavy lifting.',
+        'Publish immediately or schedule for later. Our AI-powered automation handles the heavy lifting.',
       icon: Rocket,
     },
   ];
@@ -1043,7 +1043,7 @@ function FAQSection() {
     {
       question: 'Do I need to keep my browser open?',
       answer:
-        'No. All scheduled posts are handled server-side. You can close your browser and your posts will still publish on time. Our n8n workflow handles all automation.',
+        'No. All scheduled posts are handled server-side. You can close your browser and your posts will still publish on time. Our built-in automation engine handles all scheduling.',
     },
   ];
 

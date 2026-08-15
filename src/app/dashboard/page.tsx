@@ -317,7 +317,7 @@ export default function DashboardOverview() {
               </div>
               <h4 className="font-bold text-gray-900 mb-1">AI Content Engine</h4>
               <p className="text-sm text-gray-500 mb-4">
-                Connect your n8n workflow to generate content automatically
+                Use the built-in automation engine to generate content automatically
               </p>
               <Button asChild variant="primary" size="sm" className="w-full">
                 <Link href="/dashboard/settings">

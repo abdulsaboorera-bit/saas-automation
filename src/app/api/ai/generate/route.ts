@@ -1,26 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/session';
+import { getCurrentUser, getUserOrganization } from '@/lib/auth/session';
 import { connectDB } from '@/lib/db/mongodb';
 import { Post } from '@/models/Post';
 import { PostPlatform } from '@/models/PostPlatform';
 import { SocialAccount } from '@/models/SocialAccount';
-import { v4 as uuidv4 } from 'uuid';
+import { generateContent } from '@/lib/ai';
+import { recordUsage } from '@/lib/admin/usage';
 import mongoose from 'mongoose';
-
-const N8N_GENERATE_WEBHOOK_URL = process.env.N8N_AI_WEBHOOK_URL;
 
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!N8N_GENERATE_WEBHOOK_URL) {
-      return NextResponse.json(
-        { error: 'AI generation is not configured' },
-        { status: 503 }
-      );
     }
 
     const { brief, media_url, scheduled_at, platforms } = await request.json();
@@ -41,13 +33,30 @@ export async function POST(request: Request) {
 
     await connectDB();
 
-    const postId = `post_${uuidv4().slice(0, 8)}`;
-    const jobId = `job_${uuidv4().slice(0, 8)}`;
+    const orgData = await getUserOrganization(user._id.toString());
+    const organizationId = orgData?.organization?._id || new mongoose.Types.ObjectId();
+
+    const brand = await import('@/models/BrandProfile').then((m) =>
+      m.BrandProfile.findOne({ userId: user._id })
+    );
+
+    const result = await generateContent({
+      topic: brief,
+      brandName: brand?.brandName,
+      industry: brand?.industry,
+      tone: brand?.tone,
+      targetAudience: brand?.targetAudience,
+      keywords: brand?.keywords,
+      platform: platforms[0]?.platform || 'instagram',
+    });
+
+    const fullCaption = result.caption + '\n\n' + result.hashtags.map((h) => `#${h}`).join(' ');
 
     const post = await Post.create({
       _id: new mongoose.Types.ObjectId(),
       user_id: user._id,
-      caption: '',
+      organizationId,
+      caption: fullCaption,
       media_url: media_url || null,
       status: 'draft',
       scheduled_at: scheduled_at ? new Date(scheduled_at) : null,
@@ -70,47 +79,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const n8nPayload = {
-      post_id: postId,
-      client_id: user._id.toString(),
-      client_name: user.full_name || user.email,
-      user_id: user._id.toString(),
-      job_id: jobId,
-      brief,
-      media_url: media_url || null,
-      scheduled_at: scheduled_at || null,
-      platforms: platforms.map((p: { platform: string; social_account_id: string; account_name?: string; username?: string }) => ({
-        platform: p.platform,
-        social_account_id: p.social_account_id,
-        account_name: p.account_name || '',
-        username: p.username || '',
-      })),
-    };
-
-    const response = await fetch(N8N_GENERATE_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(n8nPayload),
-      signal: AbortSignal.timeout(60000),
+    await recordUsage({
+      organizationId: organizationId.toString(),
+      userId: user._id.toString(),
+      type: 'AI_REQUEST',
+      provider: 'openai',
+      modelName: 'gpt-4o-mini',
+      tokens: result.tokens,
+      estimatedCost: result.estimatedCost,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`n8n generate webhook failed: ${response.status} - ${errorText}`);
-      return NextResponse.json(
-        { error: 'AI generation failed' },
-        { status: 500 }
-      );
-    }
-
-    const result = await response.json();
 
     return NextResponse.json({
       ok: true,
-      post_id: postId,
-      caption: result.caption || '',
-      status: 'queued',
-      mongo_post_id: post._id.toString(),
+      post_id: post._id.toString(),
+      caption: fullCaption,
+      status: 'draft',
     });
   } catch (error) {
     console.error('AI generation error:', error);

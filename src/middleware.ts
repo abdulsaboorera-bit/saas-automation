@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
   ];
   const isPublicPath = publicPaths.some((path) => pathname === path || pathname.startsWith(path + '/'));
 
-  const publicApiPrefixes = ['/api/auth', '/api/n8n', '/api/ai', '/api/health'];
+  const publicApiPrefixes = ['/api/auth', '/api/ai', '/api/health'];
   const isPublicApi = publicApiPrefixes.some((prefix) => pathname.startsWith(prefix));
 
   const token = request.cookies.get('auth_token')?.value;

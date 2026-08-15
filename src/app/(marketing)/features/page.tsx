@@ -140,12 +140,12 @@ const features = [
     iconBg: 'bg-amber-500',
     iconShadow: 'shadow-amber-200',
     paragraphs: [
-      'Powered by n8n workflow automation, SocialPilot\'s AI Content Engine generates platform-optimized captions, hashtag sets, and content suggestions tailored to your brand voice. Feed it a topic or a rough idea, and receive polished, ready-to-publish content in seconds.',
+      'Powered by our built-in automation engine, SocialPilot\'s AI Content Engine generates platform-optimized captions, hashtag sets, and content suggestions tailored to your brand voice. Feed it a topic or a rough idea, and receive polished, ready-to-publish content in seconds.',
       'The engine goes beyond simple text generation. It analyzes trending topics in your niche, studies your top-performing posts, and learns from engagement patterns to produce content that resonates with your specific audience. Every caption is crafted to match the tone, length, and style expected on each platform.',
       'Hashtag suggestions are powered by real-time trend analysis. SocialPilot identifies high-performing, relevant hashtags for each post and platform — mixing popular tags with niche-specific ones to maximize discoverability without getting lost in the noise.',
     ],
     bullets: [
-      'n8n-powered AI content generation',
+      'AI-powered content generation',
       'Platform-specific caption optimization',
       'Real-time trending hashtag suggestions',
       'Brand voice learning and consistency',

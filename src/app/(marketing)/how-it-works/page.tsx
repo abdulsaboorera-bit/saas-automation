@@ -81,10 +81,10 @@ const steps = [
     icon: Send,
     title: "Publish & Automate",
     description:
-      "Hit publish immediately or schedule posts for the perfect moment. Our n8n-powered automation engine handles the heavy lifting — queuing posts, retrying on failure, and respecting each platform's rate limits. Set it once and let your social presence run on autopilot while you focus on strategy.",
+      "Hit publish immediately or schedule posts for the perfect moment. Our AI-powered automation engine handles the heavy lifting — queuing posts, retrying on failure, and respecting each platform's rate limits. Set it once and let your social presence run on autopilot while you focus on strategy.",
     bullets: [
       "Immediate publishing or smart scheduling",
-      "n8n workflow automation engine",
+      "Built-in automation engine",
       "Automatic retries on transient failures",
       "Rate-limit aware across all platforms",
       "Timezone-aware scheduling for global reach",
@@ -403,8 +403,8 @@ export default function HowItWorksPage() {
               },
               {
                 icon: Workflow,
-                title: "n8n-Powered Automation",
-                desc: "Built on the open-source n8n engine for transparent, extensible, and auditable workflow automation.",
+                title: "AI-Powered Automation",
+                desc: "Powered by our internal automation engine for transparent, extensible, and auditable workflow automation.",
               },
               {
                 icon: RefreshCw,

@@ -466,7 +466,7 @@ export default function CreatePostPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-gray-900">AI Content Generator</h4>
-                  <p className="text-xs text-gray-500">Powered by n8n + OpenAI</p>
+                  <p className="text-xs text-gray-500">Powered by OpenAI</p>
                 </div>
               </div>
 

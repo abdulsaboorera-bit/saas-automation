@@ -10,15 +10,9 @@ import {
   User,
   Bell,
   Shield,
-  Link2,
-  Zap,
   Save,
   CheckCircle2,
   AlertCircle,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  Webhook,
   Key,
 } from 'lucide-react';
 
@@ -27,9 +21,6 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
-  const [n8nSecret, setN8nSecret] = useState('');
-  const [showSecret, setShowSecret] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -75,24 +66,8 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveN8n = async () => {
-    setIsSaving(true);
-    setError('');
-    setSuccess('');
-    try {
-      // Save n8n config (this would go to a settings API)
-      await new Promise((r) => setTimeout(r, 1000));
-      setSuccess('n8n configuration saved');
-    } catch {
-      setError('Failed to save n8n configuration');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
-    { id: 'n8n', label: 'n8n Integration', icon: Webhook },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
   ];
@@ -191,86 +166,6 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {activeTab === 'n8n' && (
-            <Card>
-              <div className="px-6 py-5 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">n8n Integration</h2>
-                    <p className="text-sm text-gray-500">Configure your automation workflow</p>
-                  </div>
-                </div>
-              </div>
-              <CardContent className="p-6 space-y-6">
-                <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-amber-800">Configuration Required</p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Set up your n8n webhook URL and secret key to enable the content generation pipeline.
-                        Your n8n workflow should have an HTTP POST endpoint ready to receive payloads.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <Input
-                  label="n8n Webhook URL"
-                  value={n8nWebhookUrl}
-                  onChange={(e) => setN8nWebhookUrl(e.target.value)}
-                  placeholder="https://your-n8n-instance.com/webhook/your-endpoint"
-                  icon={<Webhook className="w-4 h-4" />}
-                />
-
-                <div>
-                  <Input
-                    label="Webhook Secret Key"
-                    type={showSecret ? 'text' : 'password'}
-                    value={n8nSecret}
-                    onChange={(e) => setN8nSecret(e.target.value)}
-                    placeholder="Enter your webhook secret"
-                    icon={<Key className="w-4 h-4" />}
-                  />
-                  <button
-                    onClick={() => setShowSecret(!showSecret)}
-                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 mt-2 transition-colors"
-                  >
-                    {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    {showSecret ? 'Hide' : 'Show'} secret
-                  </button>
-                </div>
-
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                  <h4 className="font-semibold text-gray-900 mb-2">Expected Payload Format</h4>
-                  <pre className="text-xs text-gray-600 font-mono bg-white p-3 rounded-lg border border-gray-200 overflow-x-auto">
-{`{
-  "post_id": "...",
-  "content": "...",
-  "platform": "instagram",
-  "media_url": "...",
-  "scheduled_at": "..."
-}`}
-                  </pre>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <Button variant="outline" onClick={handleSaveN8n} isLoading={isSaving}>
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    Test Connection
-                  </Button>
-                  <Button onClick={handleSaveN8n} isLoading={isSaving}>
-                    <Save className="w-4 h-4 mr-1" />
-                    Save Configuration
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {activeTab === 'notifications' && (
             <Card>
               <div className="px-6 py-5 border-b border-gray-100">
@@ -340,21 +235,6 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <Badge variant="info">Active</Badge>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-gray-50 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-                        <RefreshCw className="w-5 h-5 text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">Auto Token Refresh</p>
-                        <p className="text-xs text-gray-500">Automatically refresh expired tokens</p>
-                      </div>
-                    </div>
-                    <Badge variant="success">Active</Badge>
                   </div>
                 </div>
               </CardContent>

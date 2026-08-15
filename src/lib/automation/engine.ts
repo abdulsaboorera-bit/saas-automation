@@ -168,7 +168,7 @@ export class AutomationEngine {
     // Update topic
     await ContentTopic.findByIdAndUpdate(topic._id, {
       postId: post._id,
-      status: publishingStopped ? 'PUBLISHED' : 'PENDING',
+      status: 'PUBLISHED',
     });
   }
 
@@ -224,18 +224,25 @@ export class AutomationEngine {
     const post = await Post.findById(job.postId);
     if (!post) return;
 
-    // Get connected social accounts
-    const accounts = await SocialAccount.find({
-      organizationId: job.organizationId,
-      status: 'active',
-    });
+    const { PostPlatform } = await import('@/models/PostPlatform');
 
-    if (accounts.length === 0) {
-      await this.failJob(job._id.toString(), 'No connected social accounts', 'AUTH_ERROR');
+    // Get post-platform records (which platforms were selected)
+    const postPlatforms = await PostPlatform.find({
+      post_id: post._id,
+      status: { $in: ['pending', 'processing'] },
+    }).populate('social_account_id');
+
+    if (postPlatforms.length === 0) {
+      await this.failJob(job._id.toString(), 'No platforms linked to post', 'INVALID_REQUEST');
       return;
     }
 
-    for (const account of accounts) {
+    let allSucceeded = true;
+
+    for (const pp of postPlatforms) {
+      const account = pp.social_account_id as unknown as { platform: string; access_token_encrypted: string; _id: unknown; platform_account_id: string };
+      if (!account || account.platform !== pp.platform) continue;
+
       try {
         const token = decrypt(account.access_token_encrypted);
 
@@ -247,6 +254,11 @@ export class AutomationEngine {
           await this.publishToLinkedIn(token, account, post);
         }
 
+        await PostPlatform.findByIdAndUpdate(pp._id, {
+          status: 'published',
+          published_at: new Date(),
+        });
+
         await recordUsage({
           organizationId: job.organizationId.toString(),
           userId: job.userId.toString(),
@@ -255,13 +267,19 @@ export class AutomationEngine {
           estimatedCost: 0,
         });
       } catch (error) {
+        allSucceeded = false;
+        const errorMessage = error instanceof Error ? error.message : 'Publish failed';
+        await PostPlatform.findByIdAndUpdate(pp._id, {
+          status: 'failed',
+          error_message: errorMessage,
+        });
         console.error(`Failed to publish to ${account.platform}:`, error);
       }
     }
 
     await Post.findByIdAndUpdate(post._id, {
-      status: 'published',
-      published_at: new Date(),
+      status: allSucceeded ? 'published' : 'partial',
+      published_at: allSucceeded ? new Date() : undefined,
     });
   }
 

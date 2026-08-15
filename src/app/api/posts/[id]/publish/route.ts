@@ -4,7 +4,8 @@ import { connectDB } from '@/lib/db/mongodb';
 import { Post } from '@/models/Post';
 import { PostPlatform } from '@/models/PostPlatform';
 import { SocialAccount } from '@/models/SocialAccount';
-import { sendJobToN8n } from '@/lib/n8n';
+import { AutomationJob } from '@/models/AutomationJob';
+import { Organization } from '@/models/Organization';
 
 export async function POST(
   request: Request,
@@ -44,29 +45,33 @@ export async function POST(
       return NextResponse.json({ error: 'No platforms selected' }, { status: 400 });
     }
 
+    const org = await Organization.findById(post.organizationId);
+    if (!org || org.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Organization not active' }, { status: 403 });
+    }
+
     await Post.findByIdAndUpdate(id, {
       status: 'processing',
       updated_at: new Date(),
     });
 
-    const { jobId, success, error: n8nError } = await sendJobToN8n(
-      { ...post, _id: post._id, id: post._id } as never,
-      accounts as never[]
-    );
-
-    if (!success) {
-      await Post.findByIdAndUpdate(id, {
-        status: 'failed',
-        updated_at: new Date(),
-      });
-
-      return NextResponse.json(
-        { error: `Failed to send to automation: ${n8nError}` },
-        { status: 500 }
+    for (const account of accounts) {
+      await PostPlatform.findOneAndUpdate(
+        { post_id: post._id, social_account_id: account._id },
+        { status: 'processing' }
       );
     }
 
-    return NextResponse.json({ success: true, jobId });
+    const job = await AutomationJob.create({
+      organizationId: post.organizationId,
+      userId: user._id,
+      type: 'PUBLISH_POST',
+      status: 'QUEUED',
+      postId: post._id,
+      scheduledAt: new Date(),
+    });
+
+    return NextResponse.json({ success: true, jobId: job._id });
   } catch (error) {
     console.error('Publish post error:', error);
     return NextResponse.json({ error: 'Failed to publish post' }, { status: 500 });
