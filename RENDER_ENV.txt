@@ -1,0 +1,30 @@
+# Copy these into Render Environment Variables
+
+# MongoDB (from your Atlas dashboard)
+MONGODB_URI=mongodb+srv://abdulsaboormercedes_db_user:UazYwNVACd7yWnMI@cluster0.xxxxx.mongodb.net/socialpilot?retryWrites=true&w=majority
+
+# JWT (generate a random string - use this one or make your own)
+JWT_SECRET=socialpilot_jwt_secret_2026_random_string_32chars
+
+# App URL (your Render URL - will be assigned after deploy)
+NEXT_PUBLIC_APP_URL=https://saas-automation.onrender.com
+
+# Meta - Instagram & Facebook (from developers.facebook.com)
+META_CLIENT_ID=your_meta_app_id
+META_CLIENT_SECRET=your_meta_app_secret
+
+# LinkedIn (from linkedin.com/developers)
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+
+# n8n Integration
+N8N_WEBHOOK_URL=https://orbitrixsolutions.app.n8n.cloud/webhook/social-publish
+N8N_AI_WEBHOOK_URL=https://orbitrixsolutions.app.n8n.cloud/webhook/generate-and-publish
+N8N_API_KEY=your_n8n_api_key
+N8N_CALLBACK_SECRET=any_random_string_here
+
+# Encryption key (32+ random characters)
+ENCRYPTION_KEY=socialpilot_encryption_key_2026_random
+
+# OpenAI (optional - n8n uses its own credits)
+OPENAI_API_KEY=sk-your_openai_key

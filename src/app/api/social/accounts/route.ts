@@ -1,50 +1,60 @@
-import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/session';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/session';
 import { connectDB } from '@/lib/db/mongodb';
 import { SocialAccount } from '@/models/SocialAccount';
-import mongoose from 'mongoose';
+import { OrganizationMember } from '@/models/OrganizationMember';
+import { disconnectSocialAccount } from '@/lib/oauth';
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await requireAuth();
+    await connectDB();
+
+    const membership = await OrganizationMember.findOne({ userId: user._id });
+    if (!membership) {
+      return NextResponse.json({ accounts: [] });
     }
 
-    await connectDB();
     const accounts = await SocialAccount.find({
       user_id: user._id,
+      organizationId: membership.organizationId,
       status: 'active',
-    }).sort({ created_at: -1 }).select('-access_token_encrypted -refresh_token_encrypted');
+    }).sort({ created_at: -1 });
 
-    return NextResponse.json({ accounts });
+    return NextResponse.json({
+      accounts: accounts.map(a => ({
+        id: a._id.toString(),
+        platform: a.platform,
+        account_name: a.account_name,
+        username: a.username,
+        profile_image_url: a.profile_image_url,
+        status: a.status,
+        token_expires_at: a.token_expires_at,
+        created_at: a.created_at,
+      })),
+    });
   } catch (error) {
-    console.error('Get accounts error:', error);
-    return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireAuth();
+    await connectDB();
 
     const { accountId } = await request.json();
     if (!accountId) {
       return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
     }
 
-    await connectDB();
-    await SocialAccount.findOneAndUpdate(
-      { _id: accountId, user_id: new mongoose.Types.ObjectId(user._id.toString()) },
-      { status: 'disconnected', updated_at: new Date() }
-    );
+    const success = await disconnectSocialAccount(user._id.toString(), accountId);
+    if (!success) {
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Disconnect account error:', error);
-    return NextResponse.json({ error: 'Failed to disconnect account' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -6,6 +6,17 @@ export interface IUser extends Document {
   password: string;
   full_name: string;
   avatar_url: string | null;
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT_ADMIN' | 'OWNER' | 'MANAGER' | 'MEMBER';
+  status: 'ACTIVE' | 'PENDING_VERIFICATION' | 'SUSPENDED' | 'BLOCKED' | 'DELETED';
+  emailVerified: boolean;
+  emailVerificationToken: string | null;
+  emailVerificationExpires: Date | null;
+  passwordResetToken: string | null;
+  passwordResetExpires: Date | null;
+  lastLoginAt: Date | null;
+  lastLoginIp: string | null;
+  loginAttempts: number;
+  lockedUntil: Date | null;
   created_at: Date;
   updated_at: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -31,6 +42,54 @@ const UserSchema = new Schema<IUser>({
   },
   avatar_url: {
     type: String,
+    default: null,
+  },
+  role: {
+    type: String,
+    enum: ['SUPER_ADMIN', 'ADMIN', 'SUPPORT_ADMIN', 'OWNER', 'MANAGER', 'MEMBER'],
+    default: 'MEMBER',
+    index: true,
+  },
+  status: {
+    type: String,
+    enum: ['ACTIVE', 'PENDING_VERIFICATION', 'SUSPENDED', 'BLOCKED', 'DELETED'],
+    default: 'ACTIVE',
+    index: true,
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false,
+  },
+  emailVerificationToken: {
+    type: String,
+    default: null,
+  },
+  emailVerificationExpires: {
+    type: Date,
+    default: null,
+  },
+  passwordResetToken: {
+    type: String,
+    default: null,
+  },
+  passwordResetExpires: {
+    type: Date,
+    default: null,
+  },
+  lastLoginAt: {
+    type: Date,
+    default: null,
+  },
+  lastLoginIp: {
+    type: String,
+    default: null,
+  },
+  loginAttempts: {
+    type: Number,
+    default: 0,
+  },
+  lockedUntil: {
+    type: Date,
     default: null,
   },
 }, {

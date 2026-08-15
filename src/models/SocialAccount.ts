@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISocialAccount extends Document {
   user_id: mongoose.Types.ObjectId;
+  organizationId: mongoose.Types.ObjectId;
   platform: 'instagram' | 'facebook' | 'linkedin';
   platform_account_id: string;
   account_name: string;
@@ -11,7 +12,8 @@ export interface ISocialAccount extends Document {
   refresh_token_encrypted: string | null;
   token_expires_at: Date | null;
   metadata: Record<string, unknown> | null;
-  status: 'active' | 'expired' | 'disconnected';
+  status: 'active' | 'expired' | 'disconnected' | 'error' | 'reauth_required';
+  lastValidatedAt: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -20,6 +22,12 @@ const SocialAccountSchema = new Schema<ISocialAccount>({
   user_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
+    required: true,
+    index: true,
+  },
+  organizationId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Organization',
     required: true,
     index: true,
   },
@@ -62,8 +70,12 @@ const SocialAccountSchema = new Schema<ISocialAccount>({
   },
   status: {
     type: String,
-    enum: ['active', 'expired', 'disconnected'],
+    enum: ['active', 'expired', 'disconnected', 'error', 'reauth_required'],
     default: 'active',
+  },
+  lastValidatedAt: {
+    type: Date,
+    default: null,
   },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

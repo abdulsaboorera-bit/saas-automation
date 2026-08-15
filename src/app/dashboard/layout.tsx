@@ -20,12 +20,14 @@ import {
   ChevronDown,
   Plus,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-indigo-500' },
   { name: 'Accounts', href: '/dashboard/accounts', icon: Link2, color: 'from-emerald-500 to-teal-500' },
+  { name: 'Topics', href: '/dashboard/topics', icon: BookOpen, color: 'from-amber-500 to-yellow-500' },
   { name: 'Create Post', href: '/dashboard/create', icon: PenSquare, color: 'from-purple-500 to-pink-500' },
   { name: 'Posts', href: '/dashboard/posts', icon: FileText, color: 'from-orange-500 to-amber-500' },
   { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar, color: 'from-cyan-500 to-blue-500' },

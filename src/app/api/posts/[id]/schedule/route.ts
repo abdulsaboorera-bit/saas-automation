@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/session';
 import { connectDB } from '@/lib/db/mongodb';
 import { Post } from '@/models/Post';
+import { PostPlatform } from '@/models/PostPlatform';
+import { sendJobToN8n } from '@/lib/n8n';
 
 export async function POST(
   request: Request,
@@ -40,13 +42,43 @@ export async function POST(
       return NextResponse.json({ error: 'Cannot schedule a published post' }, { status: 400 });
     }
 
+    const postPlatforms = await PostPlatform.find({ post_id: post._id })
+      .populate('social_account_id')
+      .lean();
+
+    const accounts = postPlatforms
+      .map((pp) => pp.social_account_id)
+      .filter(Boolean);
+
+    if (accounts.length === 0) {
+      return NextResponse.json({ error: 'No platforms selected' }, { status: 400 });
+    }
+
     await Post.findByIdAndUpdate(id, {
       status: 'scheduled',
       scheduled_at: scheduleDate,
       updated_at: new Date(),
     });
 
-    return NextResponse.json({ success: true });
+    const { jobId, success, error: n8nError } = await sendJobToN8n(
+      { ...post, _id: post._id, scheduled_at: scheduleDate } as never,
+      accounts as never[]
+    );
+
+    if (!success) {
+      await Post.findByIdAndUpdate(id, {
+        status: 'draft',
+        scheduled_at: null,
+        updated_at: new Date(),
+      });
+
+      return NextResponse.json(
+        { error: `Failed to schedule: ${n8nError}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, jobId });
   } catch (error) {
     console.error('Schedule post error:', error);
     return NextResponse.json({ error: 'Failed to schedule post' }, { status: 500 });

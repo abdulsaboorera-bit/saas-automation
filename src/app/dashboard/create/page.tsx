@@ -26,14 +26,18 @@ import {
   Upload,
   CheckCircle2,
   AlertCircle,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { InstagramIcon, LinkedinIcon } from '@/components/ui/social-icons';
 
 interface SocialAccount {
   _id: string;
   platform: string;
-  platformUsername: string;
-  isActive: boolean;
+  platform_account_id: string;
+  account_name: string;
+  username: string | null;
+  status: string;
 }
 
 export default function CreatePostPage() {
@@ -48,14 +52,17 @@ export default function CreatePostPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [aiTopic, setAiTopic] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const res = await fetch('/api/accounts');
+        const res = await fetch('/api/social/accounts');
         const data = await res.json();
         if (res.ok) {
-          setAccounts((data.accounts || []).filter((a: SocialAccount) => a.isActive));
+          setAccounts((data.accounts || []).filter((a: SocialAccount) => a.status === 'active'));
         }
       } catch {
         console.error('Failed to fetch accounts');
@@ -81,10 +88,9 @@ export default function CreatePostPage() {
 
     try {
       const payload = {
-        content,
-        accountIds: selectedAccounts,
-        scheduledAt: mode === 'schedule' ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString() : undefined,
-        status: publish ? 'published' : 'draft',
+        caption: content,
+        platform_account_ids: selectedAccounts,
+        scheduled_at: mode === 'schedule' ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString() : undefined,
       };
 
       const res = await fetch('/api/posts', {
@@ -97,6 +103,36 @@ export default function CreatePostPage() {
         const data = await res.json();
         setError(data.error);
         return;
+      }
+
+      const result = await res.json();
+      const postId = result.post?.id || result.post?._id;
+
+      if (publish && postId) {
+        const publishRes = await fetch(`/api/posts/${postId}/publish`, {
+          method: 'POST',
+        });
+
+        if (!publishRes.ok) {
+          const publishData = await publishRes.json();
+          setSuccess('Post created but publishing failed: ' + publishData.error);
+          setTimeout(() => router.push('/dashboard/posts'), 2000);
+          return;
+        }
+      } else if (mode === 'schedule' && postId) {
+        const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
+        const scheduleRes = await fetch(`/api/posts/${postId}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduled_at: scheduledAt }),
+        });
+
+        if (!scheduleRes.ok) {
+          const scheduleData = await scheduleRes.json();
+          setSuccess('Post created but scheduling failed: ' + scheduleData.error);
+          setTimeout(() => router.push('/dashboard/posts'), 2000);
+          return;
+        }
       }
 
       setSuccess(publish ? 'Post published successfully!' : 'Post saved as draft!');
@@ -116,6 +152,61 @@ export default function CreatePostPage() {
 
   const wordCount = content.split(/\s+/).filter(Boolean).length;
   const charCount = content.length;
+
+  const handleGenerateAI = async () => {
+    if (!aiTopic.trim()) {
+      setAiError('Please enter a topic/brief');
+      return;
+    }
+
+    if (selectedAccounts.length === 0) {
+      setAiError('Please select at least one account');
+      return;
+    }
+
+    setAiError('');
+    setIsGenerating(true);
+
+    try {
+      const selectedAccountData = accounts
+        .filter(a => selectedAccounts.includes(a._id))
+        .map(a => ({
+          platform: a.platform,
+          social_account_id: a.platform_account_id,
+          account_name: a.account_name,
+          username: a.username,
+        }));
+
+      const payload = {
+        brief: aiTopic,
+        media_url: imagePreview || null,
+        scheduled_at: mode === 'schedule' && scheduleDate && scheduleTime
+          ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString()
+          : null,
+        platforms: selectedAccountData,
+      };
+
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAiError(data.error || 'Failed to generate content');
+        return;
+      }
+
+      setSuccess(`Content queued! Caption: "${data.caption?.slice(0, 80)}..."`);
+      setAiTopic('');
+    } catch {
+      setAiError('Failed to connect to AI service');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -351,7 +442,7 @@ export default function CreatePostPage() {
                         </div>
                         <div className="flex-1 text-left">
                           <p className="text-sm font-semibold text-gray-900 capitalize">{account.platform}</p>
-                          <p className="text-xs text-gray-500">@{account.platformUsername || 'Connected'}</p>
+                          <p className="text-xs text-gray-500">@{account.username || account.account_name}</p>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                           isSelected ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'
@@ -374,16 +465,50 @@ export default function CreatePostPage() {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900">AI Assistant</h4>
-                  <p className="text-xs text-gray-500">Powered by your n8n workflow</p>
+                  <h4 className="font-bold text-gray-900">AI Content Generator</h4>
+                  <p className="text-xs text-gray-500">Powered by n8n + OpenAI</p>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mb-4">
-                Generate engaging content with AI. Connect your n8n workflow in settings to enable.
-              </p>
-              <Button asChild variant="outline" className="w-full">
-                <a href="/dashboard/settings">Setup AI Content</a>
-              </Button>
+
+              {aiError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 mb-4 flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {aiError}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <Input
+                  label="Brief / Topic"
+                  placeholder="e.g., Promote our new autumn pumpkin spice cold brew"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  icon={<Sparkles className="w-4 h-4" />}
+                />
+
+                <Button
+                  onClick={handleGenerateAI}
+                  isLoading={isGenerating}
+                  className="w-full"
+                  variant="glow"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-1" />
+                      Generate with AI
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-[11px] text-gray-400 text-center">
+                  AI generates a caption, saves it, and queues for publishing
+                </p>
+              </div>
             </CardContent>
           </Card>
 

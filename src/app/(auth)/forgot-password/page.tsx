@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Zap, CheckCircle } from 'lucide-react';
+import { Zap, Mail, ArrowLeft, CheckCircle, Shield } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-8 bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-2 mb-8 justify-center">
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
@@ -56,18 +56,26 @@ export default function ForgotPasswordPage() {
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
-              <p className="text-gray-600 mb-6">
-                If an account exists with {email}, you will receive a password reset link.
+              <p className="text-gray-600 mb-4">
+                If an account exists with {email}, you&apos;ll receive a password reset link shortly.
               </p>
-              <Link href="/login" className="text-indigo-600 hover:text-indigo-500 font-medium">
+              <p className="text-sm text-gray-400 mb-6 flex items-center justify-center gap-1.5">
+                <Shield className="w-3.5 h-3.5" />
+                Didn&apos;t receive the email? Check your spam folder
+              </p>
+              <Link href="/login" className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-500 font-medium transition-colors">
+                <ArrowLeft className="w-4 h-4" />
                 Back to login
               </Link>
             </div>
           ) : (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset your password</h1>
-              <p className="text-gray-600 mb-6">
-                Enter your email address and we&apos;ll send you a link to reset your password.
+              <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Shield className="w-7 h-7 text-indigo-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">Reset your password</h1>
+              <p className="text-gray-600 mb-6 text-center">
+                Enter your email and we&apos;ll send you a reset link.
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,6 +91,7 @@ export default function ForgotPasswordPage() {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  icon={<Mail className="w-4 h-4" />}
                   required
                 />
 
@@ -90,15 +99,22 @@ export default function ForgotPasswordPage() {
                   Send reset link
                 </Button>
               </form>
+
+              <div className="mt-6 text-center">
+                <Link href="/login" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to login
+                </Link>
+              </div>
             </>
           )}
         </div>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Remember your password?{' '}
-          <Link href="/login" className="text-indigo-600 hover:text-indigo-500 font-medium">
-            Sign in
-          </Link>
+        <p className="mt-6 text-center text-sm text-gray-400">
+          Need help? Contact{' '}
+          <a href="mailto:support@socialpilot.app" className="text-indigo-600 hover:text-indigo-500 font-medium transition-colors">
+            support@socialpilot.app
+          </a>
         </p>
       </div>
     </div>

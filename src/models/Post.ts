@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPost extends Document {
   user_id: mongoose.Types.ObjectId;
+  organizationId: mongoose.Types.ObjectId;
   caption: string;
   media_url: string | null;
   status: 'draft' | 'scheduled' | 'processing' | 'published' | 'partial' | 'failed' | 'cancelled';
@@ -15,6 +16,12 @@ const PostSchema = new Schema<IPost>({
   user_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
+    required: true,
+    index: true,
+  },
+  organizationId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Organization',
     required: true,
     index: true,
   },

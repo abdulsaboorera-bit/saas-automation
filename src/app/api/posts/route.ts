@@ -4,7 +4,7 @@ import { connectDB } from '@/lib/db/mongodb';
 import { Post } from '@/models/Post';
 import { PostPlatform } from '@/models/PostPlatform';
 import { SocialAccount } from '@/models/SocialAccount';
-import mongoose from 'mongoose';
+import { OrganizationMember } from '@/models/OrganizationMember';
 
 export async function GET(request: Request) {
   try {
@@ -20,7 +20,9 @@ export async function GET(request: Request) {
 
     await connectDB();
 
+    const membership = await OrganizationMember.findOne({ userId: user._id });
     const query: Record<string, unknown> = { user_id: user._id };
+    if (membership) query.organizationId = membership.organizationId;
     if (status) query.status = status;
 
     const posts = await Post.find(query)
@@ -71,10 +73,12 @@ export async function POST(request: Request) {
 
     await connectDB();
 
+    const membership = await OrganizationMember.findOne({ userId: user._id });
     const postStatus = scheduled_at ? 'scheduled' : 'draft';
 
     const post = await Post.create({
       user_id: user._id,
+      organizationId: membership?.organizationId,
       caption,
       media_url: media_url || null,
       status: postStatus,

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/session';
 import { validateOAuthState, exchangeInstagramCode, getInstagramAccounts, createSocialAccount } from '@/lib/oauth';
+import { OrganizationMember } from '@/models/OrganizationMember';
+import { connectDB } from '@/lib/db/mongodb';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -33,6 +35,9 @@ export async function GET(request: Request) {
     }
 
     const account = accounts[0];
+
+    await connectDB();
+    const membership = await OrganizationMember.findOne({ userId: user._id });
 
     await createSocialAccount(
       user._id.toString(),
