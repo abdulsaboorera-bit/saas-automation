@@ -14,17 +14,18 @@ import {
   CheckCircle2,
   Plus,
   Shield,
-  Zap,
 } from 'lucide-react';
 import { InstagramIcon, LinkedinIcon } from '@/components/ui/social-icons';
 
 interface SocialAccount {
-  _id: string;
+  id: string;
   platform: string;
-  platformUsername: string;
-  isActive: boolean;
-  lastTokenRefresh?: string;
-  createdAt: string;
+  account_name: string;
+  username: string | null;
+  profile_image_url: string | null;
+  status: string;
+  token_expires_at: string | null;
+  created_at: string;
 }
 
 const platforms = [
@@ -33,20 +34,21 @@ const platforms = [
     id: 'instagram',
     icon: InstagramIcon,
     color: 'from-pink-500 to-rose-500',
-    bgColor: 'bg-pink-50',
-    iconColor: 'text-pink-600',
     description: 'Share photos and stories',
-    scope: 'pages_show_media, pages_read_engagement',
+  },
+  {
+    name: 'Facebook',
+    id: 'facebook',
+    icon: Link2,
+    color: 'from-blue-500 to-indigo-500',
+    description: 'Share posts to Facebook Pages',
   },
   {
     name: 'LinkedIn',
     id: 'linkedin',
     icon: LinkedinIcon,
     color: 'from-blue-600 to-blue-500',
-    bgColor: 'bg-blue-50',
-    iconColor: 'text-blue-600',
     description: 'Professional networking',
-    scope: 'w_member_social, r_liteprofile',
   },
 ];
 
@@ -56,14 +58,26 @@ export default function AccountsPage() {
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    const ok = params.get('success');
+    if (err) {
+      setError(decodeURIComponent(err.replace(/_/g, ' ')));
+      window.history.replaceState({}, '', '/dashboard/accounts');
+    }
+    if (ok) {
+      setSuccess(`${ok} connected successfully!`);
+      window.history.replaceState({}, '', '/dashboard/accounts');
+    }
     fetchAccounts();
   }, []);
 
   const fetchAccounts = async () => {
     try {
-      const res = await fetch('/api/accounts');
+      const res = await fetch('/api/social/accounts');
       const data = await res.json();
       if (res.ok) {
         setAccounts(data.accounts || []);
@@ -78,17 +92,14 @@ export default function AccountsPage() {
   const handleConnect = async (platform: string) => {
     setConnectingPlatform(platform);
     setError('');
+    setSuccess('');
 
     try {
-      const res = await fetch('/api/accounts/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform }),
-      });
+      const res = await fetch(`/api/social/${platform}/connect`);
       const data = await res.json();
 
-      if (res.ok && data.authUrl) {
-        window.location.href = data.authUrl;
+      if (res.ok && data.url) {
+        window.location.href = data.url;
       } else {
         setError(data.error || 'Failed to initiate connection');
         setConnectingPlatform(null);
@@ -101,9 +112,13 @@ export default function AccountsPage() {
 
   const handleDisconnect = async (accountId: string) => {
     try {
-      const res = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' });
+      const res = await fetch('/api/social/accounts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
       if (res.ok) {
-        setAccounts((prev) => prev.filter((a) => a._id !== accountId));
+        setAccounts((prev) => prev.filter((a) => a.id !== accountId));
       }
     } catch {
       console.error('Failed to disconnect account');
@@ -111,7 +126,13 @@ export default function AccountsPage() {
   };
 
   const getConnectedPlatform = (platformId: string) => {
-    return accounts.find((a) => a.platform.toLowerCase() === platformId.toLowerCase());
+    return accounts.find((a) => a.platform === platformId);
+  };
+
+  const getPlatformColor = (platform: string) => {
+    if (platform === 'instagram') return 'from-pink-500 to-rose-500';
+    if (platform === 'linkedin') return 'from-blue-600 to-blue-500';
+    return 'from-blue-500 to-indigo-500';
   };
 
   return (
@@ -128,41 +149,41 @@ export default function AccountsPage() {
         </Button>
       </div>
 
-      {/* Error Alert */}
+      {/* Alerts */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
+          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">×</button>
+        </div>
+      )}
+      {success && (
+        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-sm text-emerald-600 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          {success}
+          <button onClick={() => setSuccess('')} className="ml-auto text-emerald-400 hover:text-emerald-600">×</button>
         </div>
       )}
 
-      {/* Connected Accounts Grid */}
+      {/* Connected Accounts */}
       {accounts.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Active Connections</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {accounts.map((account) => (
-              <Card key={account._id} hover>
+              <Card key={account.id} hover>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${
-                        account.platform === 'instagram' ? 'from-pink-500 to-rose-500' :
-                        account.platform === 'linkedin' ? 'from-blue-600 to-blue-500' :
-                        'from-blue-500 to-indigo-500'
-                      } flex items-center justify-center shadow-lg`}>
-                        {account.platform === 'instagram' && <InstagramIcon className="w-7 h-7 text-white" />}
-                        {account.platform === 'linkedin' && <LinkedinIcon className="w-7 h-7 text-white" />}
-                        {account.platform !== 'instagram' && account.platform !== 'linkedin' && (
-                          <Link2 className="w-7 h-7 text-white" />
-                        )}
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${getPlatformColor(account.platform)} flex items-center justify-center shadow-lg`}>
+                        <Link2 className="w-7 h-7 text-white" />
                       </div>
                       <div>
                         <h3 className="font-bold text-gray-900 capitalize">{account.platform}</h3>
-                        <p className="text-sm text-gray-500">@{account.platformUsername || 'Connected'}</p>
+                        <p className="text-sm text-gray-500">@{account.username || account.account_name}</p>
                         <div className="flex items-center gap-2 mt-1.5">
-                          <Badge variant={account.isActive ? 'success' : 'danger'} dot>
-                            {account.isActive ? 'Active' : 'Inactive'}
+                          <Badge variant={account.status === 'active' ? 'success' : 'danger'} dot>
+                            {account.status === 'active' ? 'Active' : account.status}
                           </Badge>
                         </div>
                       </div>
@@ -178,7 +199,7 @@ export default function AccountsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDisconnect(account._id)}
+                        onClick={() => handleDisconnect(account.id)}
                         className="text-red-500 hover:text-red-600 hover:bg-red-50"
                       >
                         <Unlink className="w-4 h-4" />
@@ -186,9 +207,9 @@ export default function AccountsPage() {
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-                    <span>Connected {new Date(account.createdAt).toLocaleDateString()}</span>
-                    {account.lastTokenRefresh && (
-                      <span>Token refreshed {new Date(account.lastTokenRefresh).toLocaleDateString()}</span>
+                    <span>Connected {new Date(account.created_at).toLocaleDateString()}</span>
+                    {account.token_expires_at && (
+                      <span>Token expires {new Date(account.token_expires_at).toLocaleDateString()}</span>
                     )}
                   </div>
                 </CardContent>
@@ -203,7 +224,7 @@ export default function AccountsPage() {
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
           {accounts.length > 0 ? 'Available Platforms' : 'Connect Your Accounts'}
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {platforms.map((platform) => {
             const connected = getConnectedPlatform(platform.id);
             return (
@@ -219,15 +240,14 @@ export default function AccountsPage() {
                         {connected && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                       </div>
                       <p className="text-sm text-gray-500 mt-0.5">{platform.description}</p>
-                      <p className="text-xs text-gray-400 mt-1.5 font-mono">{platform.scope}</p>
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     {connected ? (
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">@{connected.platformUsername || 'Connected'}</p>
-                          <p className="text-xs text-gray-400">Connected on {new Date(connected.createdAt).toLocaleDateString()}</p>
+                          <p className="text-sm font-medium text-gray-900">@{connected.username || connected.account_name}</p>
+                          <p className="text-xs text-gray-400">Connected {new Date(connected.created_at).toLocaleDateString()}</p>
                         </div>
                         <Button
                           variant="outline"
