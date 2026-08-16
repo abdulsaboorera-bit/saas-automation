@@ -1,28 +1,35 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/session';
-import { validateOAuthState, exchangeLinkedInCode, getLinkedInProfile, createSocialAccount } from '@/lib/oauth';
+import { validateOAuthStateByToken, exchangeLinkedInCode, getLinkedInProfile, createSocialAccount } from '@/lib/oauth';
+import { User } from '@/models/User';
+import { connectDB } from '@/lib/db/mongodb';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
+  const error = searchParams.get('error');
+
+  if (error) {
+    return NextResponse.redirect(`${origin}/dashboard/accounts?error=fb_${error}`);
+  }
 
   if (!code || !state) {
     return NextResponse.redirect(`${origin}/dashboard/accounts?error=missing_params`);
   }
 
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.redirect(`${origin}/login`);
-    }
-
-    const isValidState = await validateOAuthState(user._id.toString(), 'linkedin', state);
-    if (!isValidState) {
+    const stateData = await validateOAuthStateByToken('linkedin', state);
+    if (!stateData) {
       return NextResponse.redirect(`${origin}/dashboard/accounts?error=invalid_state`);
     }
 
-    const tokenData = await exchangeLinkedInCode(code);
+    await connectDB();
+    const user = await User.findById(stateData.userId).select('-password');
+    if (!user) {
+      return NextResponse.redirect(`${origin}/dashboard/accounts?error=user_not_found`);
+    }
+
+    const tokenData = await exchangeLinkedInCode(code, origin);
     if (!tokenData) {
       return NextResponse.redirect(`${origin}/dashboard/accounts?error=token_exchange_failed`);
     }

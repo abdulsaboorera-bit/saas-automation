@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/session';
-import { validateOAuthState, exchangeInstagramCode, getInstagramAccounts, createSocialAccount } from '@/lib/oauth';
+import { validateOAuthStateByToken, exchangeInstagramCode, getInstagramAccounts, createSocialAccount } from '@/lib/oauth';
+import { User } from '@/models/User';
 import { OrganizationMember } from '@/models/OrganizationMember';
 import { connectDB } from '@/lib/db/mongodb';
 
@@ -8,23 +8,29 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
+  const error = searchParams.get('error');
+
+  if (error) {
+    return NextResponse.redirect(`${origin}/dashboard/accounts?error=fb_${error}`);
+  }
 
   if (!code || !state) {
     return NextResponse.redirect(`${origin}/dashboard/accounts?error=missing_params`);
   }
 
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.redirect(`${origin}/login`);
-    }
-
-    const isValidState = await validateOAuthState(user._id.toString(), 'instagram', state);
-    if (!isValidState) {
+    const stateData = await validateOAuthStateByToken('instagram', state);
+    if (!stateData) {
       return NextResponse.redirect(`${origin}/dashboard/accounts?error=invalid_state`);
     }
 
-    const tokenData = await exchangeInstagramCode(code);
+    await connectDB();
+    const user = await User.findById(stateData.userId).select('-password');
+    if (!user) {
+      return NextResponse.redirect(`${origin}/dashboard/accounts?error=user_not_found`);
+    }
+
+    const tokenData = await exchangeInstagramCode(code, origin);
     if (!tokenData) {
       return NextResponse.redirect(`${origin}/dashboard/accounts?error=token_exchange_failed`);
     }
@@ -36,7 +42,6 @@ export async function GET(request: Request) {
 
     const account = accounts[0];
 
-    await connectDB();
     const membership = await OrganizationMember.findOne({ userId: user._id });
 
     await createSocialAccount(

@@ -45,36 +45,54 @@ export async function validateOAuthState(
   return true;
 }
 
-export function getInstagramAuthUrl(userId: string, state: string): string {
+export async function validateOAuthStateByToken(
+  platform: Platform,
+  stateToken: string
+): Promise<{ userId: string } | null> {
+  await connectDB();
+  const state = await OAuthState.findOne({
+    platform,
+    state_token: stateToken,
+    expires_at: { $gt: new Date() },
+  });
+
+  if (!state) return null;
+
+  const userId = state.user_id.toString();
+  await OAuthState.deleteOne({ _id: state._id });
+  return { userId };
+}
+
+export function getInstagramAuthUrl(userId: string, state: string, baseUrlOverride?: string): string {
   const clientId = process.env.META_CLIENT_ID;
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+  const baseUrl = (baseUrlOverride || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
   const redirectUri = `${baseUrl}/api/social/instagram/callback`;
   const scopes = 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement';
   return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
 }
 
-export function getFacebookAuthUrl(userId: string, state: string): string {
+export function getFacebookAuthUrl(userId: string, state: string, baseUrlOverride?: string): string {
   const clientId = process.env.META_CLIENT_ID;
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+  const baseUrl = (baseUrlOverride || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
   const redirectUri = `${baseUrl}/api/social/facebook/callback`;
   const scopes = 'pages_show_list,pages_manage_posts,pages_read_engagement';
   return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
 }
 
-export function getLinkedInAuthUrl(userId: string, state: string): string {
+export function getLinkedInAuthUrl(userId: string, state: string, baseUrlOverride?: string): string {
   const clientId = process.env.LINKEDIN_CLIENT_ID;
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+  const baseUrl = (baseUrlOverride || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
   const redirectUri = `${baseUrl}/api/social/linkedin/callback`;
   const scopes = 'openid profile email w_member_social';
   return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}`;
 }
 
-export async function exchangeInstagramCode(code: string): Promise<{
+export async function exchangeInstagramCode(code: string, baseUrlOverride?: string): Promise<{
   access_token: string;
   user_id: string;
 } | null> {
   try {
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+    const baseUrl = (baseUrlOverride || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
     const tokenRes = await fetch(
       `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${process.env.META_CLIENT_ID}&redirect_uri=${encodeURIComponent(`${baseUrl}/api/social/instagram/callback`)}&client_secret=${process.env.META_CLIENT_SECRET}&code=${code}`
     );
@@ -90,11 +108,11 @@ export async function exchangeInstagramCode(code: string): Promise<{
   }
 }
 
-export async function exchangeFacebookCode(code: string): Promise<{
+export async function exchangeFacebookCode(code: string, baseUrlOverride?: string): Promise<{
   access_token: string;
 } | null> {
   try {
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+    const baseUrl = (baseUrlOverride || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
     const tokenRes = await fetch(
       `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${process.env.META_CLIENT_ID}&redirect_uri=${encodeURIComponent(`${baseUrl}/api/social/facebook/callback`)}&client_secret=${process.env.META_CLIENT_SECRET}&code=${code}`
     );
@@ -110,12 +128,12 @@ export async function exchangeFacebookCode(code: string): Promise<{
   }
 }
 
-export async function exchangeLinkedInCode(code: string): Promise<{
+export async function exchangeLinkedInCode(code: string, baseUrlOverride?: string): Promise<{
   access_token: string;
   expires_in: number;
 } | null> {
   try {
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+    const baseUrl = (baseUrlOverride || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
     const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
