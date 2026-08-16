@@ -67,7 +67,7 @@ export function getInstagramAuthUrl(userId: string, state: string, baseUrlOverri
   const clientId = process.env.META_CLIENT_ID;
   const baseUrl = (baseUrlOverride || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
   const redirectUri = `${baseUrl}/api/social/instagram/callback`;
-  const scopes = 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement';
+  const scopes = 'pages_show_list,pages_read_engagement';
   return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
 }
 
