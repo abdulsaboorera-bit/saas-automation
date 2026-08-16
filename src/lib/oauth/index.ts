@@ -217,6 +217,10 @@ export async function createSocialAccount(
 ): Promise<ISocialAccount> {
   await connectDB();
 
+  const { OrganizationMember } = await import('@/models/OrganizationMember');
+  const membership = await OrganizationMember.findOne({ userId: new mongoose.Types.ObjectId(userId) });
+  const organizationId = membership?.organizationId;
+
   const existing = await SocialAccount.findOne({
     user_id: new mongoose.Types.ObjectId(userId),
     platform,
@@ -232,12 +236,14 @@ export async function createSocialAccount(
     existing.token_expires_at = expiresAt ? new Date(expiresAt) : null;
     existing.metadata = metadata;
     existing.status = 'active';
+    if (organizationId) existing.organizationId = organizationId;
     await existing.save();
     return existing;
   }
 
   return await SocialAccount.create({
     user_id: new mongoose.Types.ObjectId(userId),
+    organizationId: organizationId || new mongoose.Types.ObjectId(),
     platform,
     platform_account_id: platformAccountId,
     account_name: accountName,
