@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/session';
-import { createOAuthState, getFacebookAuthUrl } from '@/lib/oauth';
+import { createOAuthState, getFacebookAuthUrl, getBaseUrl } from '@/lib/oauth';
 
 export async function GET(request: Request) {
   try {
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { origin } = new URL(request.url);
+    const origin = getBaseUrl(request);
     const state = await createOAuthState(user._id.toString(), 'facebook');
     const url = getFacebookAuthUrl(user._id.toString(), state, origin);
 

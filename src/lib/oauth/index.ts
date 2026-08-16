@@ -5,6 +5,17 @@ import { generateStateToken, encrypt, decrypt } from '@/lib/security/encryption'
 import { Platform } from '@/types';
 import mongoose from 'mongoose';
 
+export function getBaseUrl(request?: Request): string {
+  if (request) {
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    const forwardedProto = request.headers.get('x-forwarded-proto');
+    if (forwardedHost) {
+      return `${forwardedProto || 'https'}://${forwardedHost}`;
+    }
+  }
+  return (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+}
+
 export async function createOAuthState(
   userId: string,
   platform: Platform,

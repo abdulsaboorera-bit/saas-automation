@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/session';
-import { createOAuthState, getInstagramAuthUrl } from '@/lib/oauth';
+import { createOAuthState, getInstagramAuthUrl, getBaseUrl } from '@/lib/oauth';
 import { OrganizationMember } from '@/models/OrganizationMember';
 import { connectDB } from '@/lib/db/mongodb';
 
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { origin } = new URL(request.url);
+    const origin = getBaseUrl(request);
     await connectDB();
     const membership = await OrganizationMember.findOne({ userId: user._id });
     const state = await createOAuthState(user._id.toString(), 'instagram');
