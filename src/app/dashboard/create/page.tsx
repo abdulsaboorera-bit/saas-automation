@@ -32,9 +32,8 @@ import {
 import { InstagramIcon, LinkedinIcon } from '@/components/ui/social-icons';
 
 interface SocialAccount {
-  _id: string;
+  id: string;
   platform: string;
-  platform_account_id: string;
   account_name: string;
   username: string | null;
   status: string;
@@ -169,10 +168,10 @@ export default function CreatePostPage() {
 
     try {
       const selectedAccountData = accounts
-        .filter(a => selectedAccounts.includes(a._id))
+        .filter(a => selectedAccounts.includes(a.id))
         .map(a => ({
           platform: a.platform,
-          social_account_id: a.platform_account_id,
+          social_account_id: a.id,
           account_name: a.account_name,
           username: a.username,
         }));
@@ -422,11 +421,11 @@ export default function CreatePostPage() {
               ) : (
                 <div className="space-y-2">
                   {accounts.map((account) => {
-                    const isSelected = selectedAccounts.includes(account._id);
+                    const isSelected = selectedAccounts.includes(account.id);
                     return (
                       <button
-                        key={account._id}
-                        onClick={() => toggleAccount(account._id)}
+                        key={account.id}
+                        onClick={() => toggleAccount(account.id)}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
                           isSelected
                             ? 'border-indigo-500 bg-indigo-50'

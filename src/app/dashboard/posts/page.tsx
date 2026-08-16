@@ -27,12 +27,13 @@ import { InstagramIcon, LinkedinIcon } from '@/components/ui/social-icons';
 
 interface Post {
   _id: string;
-  content: string;
+  id: string;
+  caption: string;
   status: string;
-  scheduledAt?: string;
-  publishedAt?: string;
-  createdAt: string;
-  platforms?: string[];
+  scheduled_at?: string;
+  published_at?: string;
+  created_at: string;
+  post_platforms?: Array<{ platform: string; status: string }>;
 }
 
 export default function PostsPage() {
@@ -51,7 +52,7 @@ export default function PostsPage() {
   useEffect(() => {
     let result = posts;
     if (searchQuery) {
-      result = result.filter((p) => p.content.toLowerCase().includes(searchQuery.toLowerCase()));
+      result = result.filter((p) => p.caption?.toLowerCase().includes(searchQuery.toLowerCase()));
     }
     if (statusFilter !== 'all') {
       result = result.filter((p) => p.status === statusFilter);
@@ -94,7 +95,7 @@ export default function PostsPage() {
       const res = await fetch(`/api/posts/${postId}/publish`, { method: 'POST' });
       if (res.ok) {
         setPosts((prev) =>
-          prev.map((p) => (p._id === postId ? { ...p, status: 'published', publishedAt: new Date().toISOString() } : p))
+          prev.map((p) => (p._id === postId ? { ...p, status: 'published', published_at: new Date().toISOString() } : p))
         );
       }
     } catch {
@@ -217,32 +218,32 @@ export default function PostsPage() {
                           <statusConfig.icon className="w-3 h-3 mr-1" />
                           {statusConfig.label}
                         </Badge>
-                        {post.platforms?.map((p) => (
-                          <Badge key={p} variant="info" size="sm">
-                            {p === 'instagram' && <InstagramIcon className="w-3 h-3 mr-1" />}
-                            {p === 'linkedin' && <LinkedinIcon className="w-3 h-3 mr-1" />}
-                            {p}
+                        {post.post_platforms?.map((pp) => (
+                          <Badge key={pp.platform} variant="info" size="sm">
+                            {pp.platform === 'instagram' && <InstagramIcon className="w-3 h-3 mr-1" />}
+                            {pp.platform === 'linkedin' && <LinkedinIcon className="w-3 h-3 mr-1" />}
+                            {pp.platform}
                           </Badge>
                         ))}
                       </div>
-                      <p className="text-sm text-gray-900 line-clamp-2 mb-3">{post.content}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-400">
+                        <p className="text-sm text-gray-900 line-clamp-2 mb-3">{post.caption}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-400">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
-                          {new Date(post.createdAt).toLocaleDateString('en-US', {
+                          {new Date(post.created_at).toLocaleDateString('en-US', {
                             month: 'short', day: 'numeric', year: 'numeric',
                           })}
                         </span>
-                        {post.scheduledAt && (
+                        {post.scheduled_at && (
                           <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5" />
-                            Scheduled: {new Date(post.scheduledAt).toLocaleString()}
+                            Scheduled: {new Date(post.scheduled_at).toLocaleString()}
                           </span>
                         )}
-                        {post.publishedAt && (
+                        {post.published_at && (
                           <span className="flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            Published: {new Date(post.publishedAt).toLocaleString()}
+                            Published: {new Date(post.published_at).toLocaleString()}
                           </span>
                         )}
                       </div>

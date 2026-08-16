@@ -18,10 +18,10 @@ import {
 
 interface Post {
   _id: string;
-  content: string;
+  caption: string;
   status: string;
-  scheduledAt?: string;
-  createdAt: string;
+  scheduled_at?: string;
+  created_at: string;
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -71,7 +71,7 @@ export default function CalendarPage() {
 
   const getPostsForDate = (date: Date) => {
     return posts.filter((post) => {
-      const postDate = new Date(post.scheduledAt || post.createdAt);
+      const postDate = new Date(post.scheduled_at || post.created_at);
       return (
         postDate.getFullYear() === date.getFullYear() &&
         postDate.getMonth() === date.getMonth() &&
@@ -219,7 +219,7 @@ export default function CalendarPage() {
                                   : 'bg-gray-100 text-gray-600'
                               }`}
                             >
-                              {post.content.slice(0, 20)}...
+                               {post.caption.slice(0, 20)}...
                             </div>
                           );
                         })}
@@ -265,16 +265,16 @@ export default function CalendarPage() {
                             <Badge variant={config.variant} size="sm" dot>
                               {post.status}
                             </Badge>
-                            {post.scheduledAt && (
+                            {post.scheduled_at && (
                               <span className="text-xs text-gray-400">
-                                {new Date(post.scheduledAt).toLocaleTimeString('en-US', {
+                                {new Date(post.scheduled_at).toLocaleTimeString('en-US', {
                                   hour: '2-digit',
                                   minute: '2-digit',
                                 })}
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-700 line-clamp-2">{post.content}</p>
+                          <p className="text-sm text-gray-700 line-clamp-2">{post.caption}</p>
                         </div>
                       );
                     })}
@@ -312,10 +312,10 @@ export default function CalendarPage() {
                       <Clock className="w-4 h-4 text-amber-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{post.content}</p>
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{post.caption}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {post.scheduledAt
-                          ? new Date(post.scheduledAt).toLocaleString()
+                        {post.scheduled_at
+                          ? new Date(post.scheduled_at).toLocaleString()
                           : 'No date set'}
                       </p>
                     </div>

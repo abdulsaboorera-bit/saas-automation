@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth/session';
 import { connectDB } from '@/lib/db/mongodb';
 import { OrganizationMember } from '@/models/OrganizationMember';
 import { Organization } from '@/models/Organization';
+import { User } from '@/models/User';
 
 export async function GET() {
   try {
@@ -31,6 +32,32 @@ export async function GET() {
         membershipRole: membership?.role || null,
       },
     });
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const updates: Record<string, unknown> = {};
+
+    if (body.full_name !== undefined) updates.full_name = body.full_name;
+    if (body.avatar_url !== undefined) updates.avatar_url = body.avatar_url;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    await connectDB();
+    await User.findByIdAndUpdate(user._id, updates);
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

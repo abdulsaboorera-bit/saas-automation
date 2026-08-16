@@ -127,7 +127,7 @@ export default function AdminUserDetailPage() {
                         <Link2 className="w-4 h-4" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{acc.accountName as string}</p>
+                        <p className="text-sm font-medium text-white">{(acc.account_name || acc.accountName) as string}</p>
                         <p className="text-xs text-slate-400">{acc.platform as string} · {acc.status as string}</p>
                       </div>
                     </div>

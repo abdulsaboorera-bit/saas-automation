@@ -36,10 +36,10 @@ export default function DashboardOverview() {
   });
   const [recentPosts, setRecentPosts] = useState<Array<{
     id: string;
-    content: string;
+    caption: string;
     status: string;
-    platform?: string;
-    createdAt: string;
+    created_at: string;
+    post_platforms?: Array<{ platform: string }>;
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,7 +48,7 @@ export default function DashboardOverview() {
       try {
         const [postsRes, accountsRes] = await Promise.all([
           fetch('/api/posts'),
-          fetch('/api/accounts'),
+          fetch('/api/social/accounts'),
         ]);
 
         const postsData = await postsRes.json();
@@ -245,16 +245,16 @@ export default function DashboardOverview() {
                     <div key={post.id} className="px-6 py-4 hover:bg-gray-50/50 transition-colors">
                       <div className="flex items-start gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 line-clamp-2">{post.content}</p>
+                          <p className="text-sm font-medium text-gray-900 line-clamp-2">{post.caption}</p>
                           <div className="flex items-center gap-3 mt-2">
                             <Badge variant={getStatusColor(post.status)} dot size="sm">
                               {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
                             </Badge>
-                            {post.platform && (
-                              <span className="text-xs text-gray-400">{post.platform}</span>
+                            {post.post_platforms && post.post_platforms.length > 0 && (
+                              <span className="text-xs text-gray-400">{post.post_platforms[0].platform}</span>
                             )}
                             <span className="text-xs text-gray-400">
-                              {new Date(post.createdAt).toLocaleDateString('en-US', {
+                              {new Date(post.created_at).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
                               })}
