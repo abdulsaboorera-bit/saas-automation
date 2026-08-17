@@ -51,6 +51,7 @@ export default function CreatePostPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [aiTopic, setAiTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -86,8 +87,21 @@ export default function CreatePostPage() {
     setIsPublishing(true);
 
     try {
+      let mediaUrl = null;
+
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          mediaUrl = uploadData.url;
+        }
+      }
+
       const payload = {
         caption: content,
+        media_url: mediaUrl,
         platform_account_ids: selectedAccounts,
         scheduled_at: mode === 'schedule' ? new Date(`${scheduleDate}T${scheduleTime}`).toISOString() : undefined,
       };
@@ -138,6 +152,7 @@ export default function CreatePostPage() {
       setContent('');
       setSelectedAccounts([]);
       setImagePreview(null);
+      setImageFile(null);
 
       if (publish) {
         setTimeout(() => router.push('/dashboard/posts'), 1500);
@@ -288,7 +303,7 @@ export default function CreatePostPage() {
                   <div className="relative inline-block">
                     <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-xl" />
                     <button
-                      onClick={() => setImagePreview(null)}
+                      onClick={() => { setImagePreview(null); setImageFile(null); }}
                       className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                     >
                       <X className="w-3 h-3" />
@@ -306,6 +321,7 @@ export default function CreatePostPage() {
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        setImageFile(file);
                         const reader = new FileReader();
                         reader.onloadend = () => setImagePreview(reader.result as string);
                         reader.readAsDataURL(file);

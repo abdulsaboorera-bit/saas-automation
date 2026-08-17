@@ -335,18 +335,36 @@ export class AutomationEngine {
     const pageId = account.metadata?.pageId || account.platform_account_id;
     const pageToken = account.metadata?.pageAccessToken || token;
 
-    await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}/feed`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: post.caption,
-          link: post.media_url || undefined,
-          access_token: pageToken,
-        }),
+    if (post.media_url) {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${pageId}/photos`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: post.caption,
+            url: post.media_url,
+            access_token: pageToken,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.error) {
+        console.error('Facebook photo post error:', data.error);
       }
-    );
+    } else {
+      await fetch(
+        `https://graph.facebook.com/v19.0/${pageId}/feed`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: post.caption,
+            access_token: pageToken,
+          }),
+        }
+      );
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
