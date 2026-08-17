@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/session';
+import { connectDB } from '@/lib/db/mongodb';
+import { SocialAccount } from '@/models/SocialAccount';
+import { decrypt } from '@/lib/security/encryption';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -36,10 +39,6 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(bytes);
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const filename = `${user._id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-    const storageUrl = process.env.NEXT_PUBLIC_STORAGE_URL || process.env.NEXT_PUBLIC_APP_URL;
-    const url = `${storageUrl}/api/upload/serve/${filename}`;
 
     const fs = require('fs');
     const path = require('path');
@@ -49,12 +48,14 @@ export async function POST(request: Request) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    const filepath = path.join(uploadDir, `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`);
+    const savedFilename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const filepath = path.join(uploadDir, savedFilename);
     fs.writeFileSync(filepath, buffer);
 
-    const publicUrl = `/uploads/${user._id.toString()}/${path.basename(filepath)}`;
+    const storageUrl = process.env.NEXT_PUBLIC_STORAGE_URL || process.env.NEXT_PUBLIC_APP_URL;
+    const publicUrl = `${storageUrl}/uploads/${user._id.toString()}/${savedFilename}`;
 
-    return NextResponse.json({ url: publicUrl, path: filename });
+    return NextResponse.json({ url: publicUrl, path: publicUrl });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
