@@ -360,25 +360,39 @@ export class AutomationEngine {
         return;
       }
 
-      const imageBuffer = await imageRes.arrayBuffer();
-      const imageBlob = new Blob([imageBuffer]);
+      const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
       const ext = post.media_url.split('.').pop()?.split('?')[0] || 'jpg';
-      const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
 
-      // Upload image to Facebook via multipart form
+      // Use form-data for proper multipart upload
+      const FormData = (await import('form-data')).default;
       const formData = new FormData();
-      formData.append('source', imageBlob, `image.${ext}`);
+      formData.append('source', imageBuffer, {
+        filename: `image.${ext}`,
+        contentType: ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg',
+      });
       formData.append('caption', post.caption || '');
       formData.append('access_token', pageToken);
 
-      const photoRes = await fetch(
-        `https://graph.facebook.com/v19.0/${pageId}/photos`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-      const photoData = await photoRes.json();
+      const https = await import('https');
+      const photoData = await new Promise<any>((resolve, reject) => {
+        const req = https.request(
+          `https://graph.facebook.com/v19.0/${pageId}/photos`,
+          {
+            method: 'POST',
+            headers: formData.getHeaders(),
+          },
+          (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+              try { resolve(JSON.parse(data)); } catch { reject(new Error('Invalid response from Facebook')); }
+            });
+          }
+        );
+        req.on('error', reject);
+        formData.pipe(req);
+      });
+
       if (photoData.error) {
         console.error('[Facebook] Photo upload failed:', JSON.stringify(photoData.error));
         throw new Error(`Facebook photo upload failed: ${photoData.error.message}`);
