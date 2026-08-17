@@ -336,26 +336,55 @@ export class AutomationEngine {
     const pageToken = account.metadata?.pageAccessToken || token;
 
     if (post.media_url) {
-      // Post with image - use /photos endpoint for proper image display
+      // Fetch the image from our server
+      const imageRes = await fetch(post.media_url);
+      if (!imageRes.ok) {
+        console.error('[Facebook] Failed to fetch image:', post.media_url, imageRes.status);
+        // Fallback: post as text with link
+        const feedRes = await fetch(
+          `https://graph.facebook.com/v19.0/${pageId}/feed`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: post.caption,
+              link: post.media_url,
+              access_token: pageToken,
+            }),
+          }
+        );
+        const feedData = await feedRes.json();
+        if (feedData.error) {
+          throw new Error(`Facebook post failed: ${feedData.error.message}`);
+        }
+        return;
+      }
+
+      const imageBuffer = await imageRes.arrayBuffer();
+      const imageBlob = new Blob([imageBuffer]);
+      const ext = post.media_url.split('.').pop()?.split('?')[0] || 'jpg';
+      const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+
+      // Upload image to Facebook via multipart form
+      const formData = new FormData();
+      formData.append('source', imageBlob, `image.${ext}`);
+      formData.append('caption', post.caption || '');
+      formData.append('access_token', pageToken);
+
       const photoRes = await fetch(
         `https://graph.facebook.com/v19.0/${pageId}/photos`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: post.media_url,
-            caption: post.caption,
-            access_token: pageToken,
-          }),
+          body: formData,
         }
       );
       const photoData = await photoRes.json();
       if (photoData.error) {
-        console.error('[Facebook] Photo post failed:', JSON.stringify(photoData.error));
-        throw new Error(`Facebook photo post failed: ${photoData.error.message}`);
+        console.error('[Facebook] Photo upload failed:', JSON.stringify(photoData.error));
+        throw new Error(`Facebook photo upload failed: ${photoData.error.message}`);
       }
     } else {
-      // Text-only post - use /feed endpoint
+      // Text-only post
       const feedRes = await fetch(
         `https://graph.facebook.com/v19.0/${pageId}/feed`,
         {
