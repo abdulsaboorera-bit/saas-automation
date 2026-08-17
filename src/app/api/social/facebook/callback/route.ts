@@ -51,7 +51,11 @@ export async function GET(request: Request) {
       page.access_token,
       null,
       null,
-      { pages: pages.map((p) => ({ id: p.id, name: p.name })) }
+      {
+        pages: pages.map((p) => ({ id: p.id, name: p.name })),
+        pageId: page.id,
+        pageAccessToken: page.access_token,
+      }
     );
 
     return NextResponse.redirect(`${baseUrl}/dashboard/accounts?success=facebook`);

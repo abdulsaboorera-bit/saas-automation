@@ -335,18 +335,44 @@ export class AutomationEngine {
     const pageId = account.metadata?.pageId || account.platform_account_id;
     const pageToken = account.metadata?.pageAccessToken || token;
 
-    await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}/feed`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: post.caption,
-          link: post.media_url || undefined,
-          access_token: pageToken,
-        }),
+    if (post.media_url) {
+      // Post with image - use /photos endpoint for proper image display
+      const photoRes = await fetch(
+        `https://graph.facebook.com/v19.0/${pageId}/photos`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: post.media_url,
+            caption: post.caption,
+            access_token: pageToken,
+          }),
+        }
+      );
+      const photoData = await photoRes.json();
+      if (photoData.error) {
+        console.error('[Facebook] Photo post failed:', JSON.stringify(photoData.error));
+        throw new Error(`Facebook photo post failed: ${photoData.error.message}`);
       }
-    );
+    } else {
+      // Text-only post - use /feed endpoint
+      const feedRes = await fetch(
+        `https://graph.facebook.com/v19.0/${pageId}/feed`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: post.caption,
+            access_token: pageToken,
+          }),
+        }
+      );
+      const feedData = await feedRes.json();
+      if (feedData.error) {
+        console.error('[Facebook] Feed post failed:', JSON.stringify(feedData.error));
+        throw new Error(`Facebook feed post failed: ${feedData.error.message}`);
+      }
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
