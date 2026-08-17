@@ -336,11 +336,80 @@ export class AutomationEngine {
     const pageToken = account.metadata?.pageAccessToken || token;
 
     if (post.media_url) {
-      // Fetch the image from our server
-      const imageRes = await fetch(post.media_url);
-      if (!imageRes.ok) {
-        console.error('[Facebook] Failed to fetch image:', post.media_url, imageRes.status);
-        // Fallback: post as text with link
+      // Try to read image from local filesystem first, then fall back to URL fetch
+      let imageBuffer: Buffer | null = null;
+      let ext = 'jpg';
+
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+
+        // media_url is like https://host/uploads/userId/filename.jpg
+        // Extract the path portion after /uploads/
+        const urlPath = new URL(post.media_url).pathname;
+        const localPath = path.join(process.cwd(), 'public', urlPath);
+
+        if (fs.existsSync(localPath)) {
+          imageBuffer = fs.readFileSync(localPath);
+          ext = path.extname(localPath).replace('.', '') || 'jpg';
+          console.log('[Facebook] Read image from local filesystem:', localPath);
+        }
+      } catch {
+        // Local read failed, try URL fetch
+      }
+
+      if (!imageBuffer) {
+        try {
+          const imageRes = await fetch(post.media_url);
+          if (imageRes.ok) {
+            imageBuffer = Buffer.from(await imageRes.arrayBuffer());
+            ext = post.media_url.split('.').pop()?.split('?')[0] || 'jpg';
+            console.log('[Facebook] Fetched image from URL:', post.media_url);
+          }
+        } catch {
+          // URL fetch also failed
+        }
+      }
+
+      if (imageBuffer && imageBuffer.length > 0) {
+        // Upload image to Facebook via multipart form
+        const FormData = (await import('form-data')).default;
+        const formData = new FormData();
+        formData.append('source', imageBuffer, {
+          filename: `image.${ext}`,
+          contentType: ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg',
+        });
+        formData.append('caption', post.caption || '');
+        formData.append('access_token', pageToken);
+
+        const https = await import('https');
+        const photoData = await new Promise<any>((resolve, reject) => {
+          const req = https.request(
+            `https://graph.facebook.com/v19.0/${pageId}/photos`,
+            {
+              method: 'POST',
+              headers: formData.getHeaders(),
+            },
+            (res) => {
+              let data = '';
+              res.on('data', (chunk) => { data += chunk; });
+              res.on('end', () => {
+                try { resolve(JSON.parse(data)); } catch { reject(new Error('Invalid response from Facebook')); }
+              });
+            }
+          );
+          req.on('error', reject);
+          formData.pipe(req);
+        });
+
+        if (photoData.error) {
+          console.error('[Facebook] Photo upload failed:', JSON.stringify(photoData.error));
+          throw new Error(`Facebook photo upload failed: ${photoData.error.message}`);
+        }
+        console.log('[Facebook] Photo posted successfully:', photoData.id);
+      } else {
+        // No image data available, post as text with link
+        console.log('[Facebook] No image data, posting as link');
         const feedRes = await fetch(
           `https://graph.facebook.com/v19.0/${pageId}/feed`,
           {
@@ -357,45 +426,6 @@ export class AutomationEngine {
         if (feedData.error) {
           throw new Error(`Facebook post failed: ${feedData.error.message}`);
         }
-        return;
-      }
-
-      const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
-      const ext = post.media_url.split('.').pop()?.split('?')[0] || 'jpg';
-
-      // Use form-data for proper multipart upload
-      const FormData = (await import('form-data')).default;
-      const formData = new FormData();
-      formData.append('source', imageBuffer, {
-        filename: `image.${ext}`,
-        contentType: ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg',
-      });
-      formData.append('caption', post.caption || '');
-      formData.append('access_token', pageToken);
-
-      const https = await import('https');
-      const photoData = await new Promise<any>((resolve, reject) => {
-        const req = https.request(
-          `https://graph.facebook.com/v19.0/${pageId}/photos`,
-          {
-            method: 'POST',
-            headers: formData.getHeaders(),
-          },
-          (res) => {
-            let data = '';
-            res.on('data', (chunk) => { data += chunk; });
-            res.on('end', () => {
-              try { resolve(JSON.parse(data)); } catch { reject(new Error('Invalid response from Facebook')); }
-            });
-          }
-        );
-        req.on('error', reject);
-        formData.pipe(req);
-      });
-
-      if (photoData.error) {
-        console.error('[Facebook] Photo upload failed:', JSON.stringify(photoData.error));
-        throw new Error(`Facebook photo upload failed: ${photoData.error.message}`);
       }
     } else {
       // Text-only post
